@@ -1,0 +1,119 @@
+import { Button } from '@/components/ui/button';
+import { Shield, Zap, MessageCircle, BarChart3, ArrowRight, Star } from 'lucide-react';
+
+const Hero = () => {
+  const features = [
+    {
+      icon: Shield,
+      title: "Smart Contract Audit",
+      description: "AI-powered security analysis for your Solidity contracts"
+    },
+    {
+      icon: BarChart3,
+      title: "Pump & Dump Scanner",
+      description: "Detect risky tokens and potential scams before investing"
+    },
+    {
+      icon: MessageCircle,
+      title: "Smart Contract Chatbot",
+      description: "Get instant answers to your blockchain development questions"
+    },
+    {
+      icon: Zap,
+      title: "Security Insights",
+      description: "Detailed vulnerability reports with actionable recommendations"
+    }
+  ];
+
+  const scrollToAudit = () => {
+    const auditSection = document.getElementById('audit-section');
+    if (auditSection) {
+      auditSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 bg-gradient-space">
+        <div className="absolute inset-0 bg-gradient-hero opacity-30" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-primary/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute top-3/4 right-1/4 w-80 h-80 bg-purple-accent/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-4xl mx-auto">
+          {/* Badge */}
+          <div className="inline-flex items-center space-x-2 bg-secondary/50 backdrop-blur-sm px-4 py-2 rounded-full mb-8 border border-border">
+            <Star className="h-4 w-4 text-purple-primary" />
+            <span className="text-sm font-medium">Trusted by 10,000+ developers</span>
+          </div>
+
+          {/* Main Heading */}
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+            <span className="bg-gradient-primary bg-clip-text text-transparent">
+              AI-Powered
+            </span>
+            <br />
+            <span className="text-foreground">
+              Smart Contract Security
+            </span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
+            Protect your blockchain investments with advanced AI analysis. 
+            Audit smart contracts, detect scams, and get expert insights in seconds.
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <Button 
+              size="lg" 
+              className="bg-gradient-primary hover:opacity-90 text-lg px-8 py-6 shadow-glow animate-pulse-glow"
+              onClick={scrollToAudit}
+            >
+              Audit Your Contract
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline" 
+              className="text-lg px-8 py-6 border-purple-primary/50 hover:bg-purple-primary/10"
+            >
+              Watch Demo
+            </Button>
+          </div>
+
+          {/* Features Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-16">
+            {features.map((feature, index) => (
+              <div 
+                key={index}
+                className="group p-6 bg-gradient-card rounded-lg border border-border hover:border-purple-primary/50 transition-all duration-300 hover:shadow-glow"
+              >
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="p-3 bg-purple-primary/20 rounded-full group-hover:bg-purple-primary/30 transition-colors">
+                    <feature.icon className="h-6 w-6 text-purple-primary" />
+                  </div>
+                  <h3 className="font-semibold text-lg">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground">{feature.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Scroll Indicator */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+        <div className="w-6 h-10 border-2 border-purple-primary rounded-full flex justify-center">
+          <div className="w-1 h-3 bg-purple-primary rounded-full mt-2 animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Hero;

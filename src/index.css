@@ -2,41 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* AuditX - Space/Galaxy themed design system with purple gradients */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Space theme - Dark backgrounds with purple/blue accents */
+    --background: 240 10% 4%;
+    --foreground: 280 15% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 240 10% 6%;
+    --card-foreground: 280 15% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 280 15% 95%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 270 100% 65%;
+    --primary-foreground: 240 10% 4%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 10% 12%;
+    --secondary-foreground: 280 15% 90%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 240 10% 8%;
+    --muted-foreground: 280 10% 65%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 280 70% 60%;
+    --accent-foreground: 240 10% 4%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 280 15% 95%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 240 10% 20%;
+    --input: 240 10% 12%;
+    --ring: 270 100% 65%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    /* Custom AuditX colors */
+    --purple-primary: 270 100% 65%;
+    --purple-secondary: 280 70% 60%;
+    --purple-accent: 290 80% 70%;
+    --space-dark: 240 10% 4%;
+    --space-medium: 240 10% 8%;
+    --space-light: 240 10% 12%;
+    --neon-green: 120 100% 50%;
+    --neon-blue: 200 100% 60%;
+    --warning-orange: 35 100% 60%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--purple-primary)), hsl(var(--purple-secondary)));
+    --gradient-space: linear-gradient(180deg, hsl(var(--space-dark)), hsl(var(--space-medium)));
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)), hsl(var(--space-light)));
+    --gradient-hero: radial-gradient(ellipse at center, hsl(var(--purple-primary) / 0.1), transparent 70%);
+    --gradient-glow: linear-gradient(90deg, hsl(var(--purple-primary) / 0.5), hsl(var(--purple-accent) / 0.5));
+
+    /* Shadows */
+    --shadow-glow: 0 0 20px hsl(var(--purple-primary) / 0.3);
+    --shadow-card: 0 8px 32px hsl(var(--space-dark) / 0.5);
+    --shadow-neon: 0 0 10px hsl(var(--purple-primary) / 0.6);
+
+    /* Animations */
+    --animation-glow: glow 2s ease-in-out infinite alternate;
+    --animation-float: float 3s ease-in-out infinite;
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
 
