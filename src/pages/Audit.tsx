@@ -3,19 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import VulnerabilityReport from '@/components/VulnerabilityReport';
 import { 
   Upload, 
   FileText, 
   Shield, 
-  Zap, 
-  TrendingUp, 
-  BookOpen, 
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
   Download
 } from 'lucide-react';
 
@@ -50,25 +44,68 @@ const Audit = () => {
         },
         vulnerabilities: [
           {
-            severity: 'High',
-            type: 'Reentrancy',
-            description: 'Potential reentrancy attack in withdraw function',
+            id: 'vuln-1',
+            title: 'Reentrancy vulnerability detected',
+            severity: 'Critical' as const,
             line: 42,
-            suggestion: 'Use the checks-effects-interactions pattern'
+            description: 'The withdraw function is vulnerable to reentrancy attacks due to external calls before state changes.',
+            code: `function withdraw(uint amount) public {
+    require(balances[msg.sender] >= amount);
+    msg.sender.call{value: amount}("");
+    balances[msg.sender] -= amount; // State change after external call
+}`,
+            suggestions: [
+              'Use the checks-effects-interactions pattern',
+              'Implement a reentrancy guard modifier',
+              'Use transfer() instead of call() for ETH transfers',
+              'Consider using OpenZeppelin\'s ReentrancyGuard'
+            ]
           },
           {
-            severity: 'Medium',
-            type: 'Integer Overflow',
-            description: 'Potential integer overflow in calculation',
+            id: 'vuln-2',
+            title: 'Integer overflow vulnerability',
+            severity: 'Medium' as const,
             line: 28,
-            suggestion: 'Use SafeMath library for arithmetic operations'
+            description: 'Arithmetic operations without overflow protection can lead to unexpected behavior.',
+            code: `uint256 result = amount * price;
+balances[msg.sender] += result;`,
+            suggestions: [
+              'Use SafeMath library for arithmetic operations',
+              'Upgrade to Solidity 0.8+ for built-in overflow protection',
+              'Add manual overflow checks'
+            ]
           },
           {
-            severity: 'Low',
-            type: 'Gas Optimization',
-            description: 'Loop can be optimized for gas efficiency',
+            id: 'vuln-3',
+            title: 'Gas optimization issue',
+            severity: 'Low' as const,
             line: 15,
-            suggestion: 'Consider using mapping instead of array iteration'
+            description: 'Loop iteration over dynamic array can lead to high gas costs and potential DoS.',
+            code: `for(uint i = 0; i < users.length; i++) {
+    if(users[i].active) {
+        processUser(users[i]);
+    }
+}`,
+            suggestions: [
+              'Consider using mapping instead of array iteration',
+              'Implement pagination for large datasets',
+              'Add gas limit checks for loops'
+            ]
+          },
+          {
+            id: 'vuln-4',
+            title: 'Missing access control',
+            severity: 'Info' as const,
+            line: 8,
+            description: 'Function lacks proper access control mechanisms.',
+            code: `function setOwner(address newOwner) public {
+    owner = newOwner;
+}`,
+            suggestions: [
+              'Add onlyOwner modifier',
+              'Implement role-based access control',
+              'Use OpenZeppelin\'s Ownable contract'
+            ]
           }
         ]
       };
@@ -93,23 +130,6 @@ const Audit = () => {
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'High': return 'bg-destructive';
-      case 'Medium': return 'bg-warning-orange';
-      case 'Low': return 'bg-yellow-500';
-      default: return 'bg-muted';
-    }
-  };
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'High': return <XCircle className="h-4 w-4" />;
-      case 'Medium': return <AlertTriangle className="h-4 w-4" />;
-      case 'Low': return <CheckCircle className="h-4 w-4" />;
-      default: return null;
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-space py-8">
@@ -226,28 +246,7 @@ contract MyContract {
                   </div>
 
                   {/* Vulnerabilities */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Vulnerabilities Found</h3>
-                    {auditResult.vulnerabilities.map((vuln: any, index: number) => (
-                      <div key={index} className="p-4 bg-secondary/30 rounded-lg border border-border">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            {getSeverityIcon(vuln.severity)}
-                            <span className="font-medium">{vuln.type}</span>
-                          </div>
-                          <Badge variant="outline" className={getSeverityColor(vuln.severity)}>
-                            {vuln.severity}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {vuln.description}
-                        </p>
-                        <p className="text-sm font-medium text-purple-primary">
-                          Line {vuln.line}: {vuln.suggestion}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                  <VulnerabilityReport vulnerabilities={auditResult.vulnerabilities} />
 
                   {/* Download Report */}
                   <Button variant="outline" className="w-full">
