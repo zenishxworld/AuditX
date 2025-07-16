@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import VulnerabilityReport from '@/components/VulnerabilityReport';
+import { SolidityAnalyzer, type AuditReport } from '@/lib/solidityAnalyzer';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, 
   FileText, 
@@ -16,7 +18,7 @@ import {
 const Audit = () => {
   const [code, setCode] = useState('');
   const [isAuditing, setIsAuditing] = useState(false);
-  const [auditResult, setAuditResult] = useState<any>(null);
+  const [auditResult, setAuditResult] = useState<AuditReport | null>(null);
   const { toast } = useToast();
 
   const handleAudit = async () => {
@@ -31,92 +33,45 @@ const Audit = () => {
 
     setIsAuditing(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      const mockResult = {
-        overallScore: 7.5,
-        scores: {
-          security: 8.0,
-          gasEfficiency: 7.0,
-          performance: 7.5,
-          codeQuality: 8.5,
-          documentation: 6.0
-        },
-        vulnerabilities: [
-          {
-            id: 'vuln-1',
-            title: 'Reentrancy vulnerability detected',
-            severity: 'Critical' as const,
-            line: 42,
-            description: 'The withdraw function is vulnerable to reentrancy attacks due to external calls before state changes.',
-            code: `function withdraw(uint amount) public {
-    require(balances[msg.sender] >= amount);
-    msg.sender.call{value: amount}("");
-    balances[msg.sender] -= amount; // State change after external call
-}`,
-            suggestions: [
-              'Use the checks-effects-interactions pattern',
-              'Implement a reentrancy guard modifier',
-              'Use transfer() instead of call() for ETH transfers',
-              'Consider using OpenZeppelin\'s ReentrancyGuard'
-            ]
-          },
-          {
-            id: 'vuln-2',
-            title: 'Integer overflow vulnerability',
-            severity: 'Medium' as const,
-            line: 28,
-            description: 'Arithmetic operations without overflow protection can lead to unexpected behavior.',
-            code: `uint256 result = amount * price;
-balances[msg.sender] += result;`,
-            suggestions: [
-              'Use SafeMath library for arithmetic operations',
-              'Upgrade to Solidity 0.8+ for built-in overflow protection',
-              'Add manual overflow checks'
-            ]
-          },
-          {
-            id: 'vuln-3',
-            title: 'Gas optimization issue',
-            severity: 'Low' as const,
-            line: 15,
-            description: 'Loop iteration over dynamic array can lead to high gas costs and potential DoS.',
-            code: `for(uint i = 0; i < users.length; i++) {
-    if(users[i].active) {
-        processUser(users[i]);
-    }
-}`,
-            suggestions: [
-              'Consider using mapping instead of array iteration',
-              'Implement pagination for large datasets',
-              'Add gas limit checks for loops'
-            ]
-          },
-          {
-            id: 'vuln-4',
-            title: 'Missing access control',
-            severity: 'Info' as const,
-            line: 8,
-            description: 'Function lacks proper access control mechanisms.',
-            code: `function setOwner(address newOwner) public {
-    owner = newOwner;
-}`,
-            suggestions: [
-              'Add onlyOwner modifier',
-              'Implement role-based access control',
-              'Use OpenZeppelin\'s Ownable contract'
-            ]
-          }
-        ]
-      };
+    try {
+      // Run the Solidity analyzer
+      const analyzer = new SolidityAnalyzer(code);
+      const auditReport = analyzer.analyze();
       
-      setAuditResult(mockResult);
+      // Save to Supabase if user is logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const { error } = await supabase
+          .from('audit_reports')
+          .insert({
+            user_id: session.user.id,
+            code: code,
+            report: auditReport as any
+          });
+          
+        if (error) {
+          console.error('Error saving audit report:', error);
+        }
+      }
+      
+      setAuditResult(auditReport);
       setIsAuditing(false);
+      
       toast({
         title: "Audit Complete",
-        description: "Your smart contract has been analyzed successfully",
+        description: `Found ${auditReport.vulnerabilities.length} issues. Overall score: ${auditReport.overallScore}/10`,
       });
-    }, 3000);
+      
+    } catch (error) {
+      console.error('Error during audit:', error);
+      setIsAuditing(false);
+      toast({
+        title: "Audit Failed",
+        description: "An error occurred during analysis. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
