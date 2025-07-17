@@ -26,6 +26,7 @@ interface TokenData {
   dexId?: string;
   url?: string;
   pairAddress?: string;
+  pairCreatedAt?: number;
   baseToken?: {
     address: string;
     name: string;
@@ -67,22 +68,21 @@ interface AnalysisResult {
     marketCap: string;
     volume24h: string;
     liquidity: string;
+    priceChange1h: string;
+    priceChange24h: string;
+    ageHours: string;
   };
-  scores: {
-    overall: number;
-    security: number;
-    liquidity: number;
-    distribution: number;
-    manipulation: number;
-  };
+  riskScore: number;
   riskLevel: string;
+  pumpDumpDetection: string;
+  riskFactors: number;
   analysis: {
     liquidityLocked: boolean;
     whaleDistribution: number;
     honeypotRisk: boolean;
     priceManipulation: boolean;
     rugPullRisk: number;
-    liquidityScore: number;
+    volumeToMarketCapRatio: number;
   };
   warnings: Array<{
     type: string;
@@ -115,148 +115,130 @@ const Scanner = () => {
     }
   };
 
-  const analyzeToken = (tokenData: TokenData | null, address: string): AnalysisResult => {
+  // Pump & Dump Detection Logic
+  const detectPumpAndDump = (tokenData: TokenData | null, ageHours: number) => {
+    let riskFactors = 0;
     const warnings: Array<{ type: string; description: string; severity: string }> = [];
-    let securityScore = 10;
-    let liquidityScore = 10;
-    let distributionScore = 10;
-    let manipulationScore = 10;
-
-    // Default values for analysis
-    let liquidityLocked = true;
-    let whaleDistribution = 30;
-    let honeypotRisk = false;
-    let priceManipulation = false;
-    let rugPullRisk = 10;
-
+    
     if (!tokenData) {
-      // Token not found on DexScreener - high risk
-      securityScore = 2;
-      liquidityScore = 1;
-      rugPullRisk = 95;
-      honeypotRisk = true;
-      liquidityLocked = false;
-      
-      warnings.push({
-        type: "Token Not Listed",
-        description: "Token not found on major DEX platforms. This could indicate a new, unlisted, or potentially fraudulent token.",
-        severity: "Critical"
-      });
-      
-      warnings.push({
-        type: "No Liquidity Data",
-        description: "Unable to verify liquidity information. Proceed with extreme caution.",
-        severity: "High"
-      });
-    } else {
-      // Analyze liquidity
-      const liquidityUsd = tokenData.liquidity?.usd || 0;
-      if (liquidityUsd < 10000) {
-        liquidityScore -= 4;
-        rugPullRisk += 30;
-        warnings.push({
-          type: "Low Liquidity",
-          description: `Very low liquidity ($${liquidityUsd?.toLocaleString()}). High risk of price manipulation and difficulty selling.`,
-          severity: "High"
-        });
-      } else if (liquidityUsd < 50000) {
-        liquidityScore -= 2;
-        rugPullRisk += 15;
-        warnings.push({
-          type: "Moderate Liquidity Risk",
-          description: `Moderate liquidity ($${liquidityUsd?.toLocaleString()}). Consider the risk of slippage.`,
-          severity: "Medium"
-        });
-      }
-
-      // Analyze price changes for manipulation detection
-      const priceChange24h = tokenData.priceChange?.h24 || 0;
-      if (Math.abs(priceChange24h) > 50) {
-        manipulationScore -= 3;
-        priceManipulation = true;
-        rugPullRisk += 20;
-        warnings.push({
-          type: "Extreme Price Volatility",
-          description: `Price changed ${priceChange24h.toFixed(2)}% in 24h. This could indicate pump & dump activity.`,
-          severity: Math.abs(priceChange24h) > 100 ? "Critical" : "High"
-        });
-      } else if (Math.abs(priceChange24h) > 20) {
-        manipulationScore -= 1;
-        warnings.push({
-          type: "High Volatility",
-          description: `Price changed ${priceChange24h.toFixed(2)}% in 24h. Monitor for pump & dump patterns.`,
-          severity: "Medium"
-        });
-      }
-
-      // Analyze volume vs liquidity ratio
-      const volume24h = tokenData.volume?.h24 || 0;
-      const volumeToLiquidityRatio = liquidityUsd > 0 ? volume24h / liquidityUsd : 0;
-      
-      if (volumeToLiquidityRatio > 2) {
-        manipulationScore -= 2;
-        warnings.push({
-          type: "High Volume/Liquidity Ratio",
-          description: "Trading volume is unusually high compared to liquidity. This could indicate artificial activity.",
-          severity: "Medium"
-        });
-      }
-
-      // Check if liquidity is locked (simulated - would need additional API)
-      // For demo purposes, assume liquidity is not locked if it's very low
-      if (liquidityUsd < 25000) {
-        liquidityLocked = false;
-        securityScore -= 3;
-        rugPullRisk += 25;
-        warnings.push({
-          type: "Liquidity Not Locked",
-          description: "Liquidity appears to be unlocked and can be withdrawn by developers, creating rug pull risk.",
-          severity: "High"
-        });
-      }
-
-      // Simulate whale distribution analysis
-      // In reality, this would require blockchain analysis
-      if (liquidityUsd < 50000) {
-        whaleDistribution = 70 + Math.random() * 20; // High whale concentration for low liquidity tokens
-        distributionScore -= 3;
-        warnings.push({
-          type: "High Whale Concentration",
-          description: `Estimated ${whaleDistribution.toFixed(1)}% of tokens held by top wallets. Risk of coordinated dumps.`,
-          severity: "High"
-        });
-      } else {
-        whaleDistribution = 20 + Math.random() * 30;
-        if (whaleDistribution > 40) {
-          distributionScore -= 1;
-          warnings.push({
-            type: "Moderate Whale Concentration",
-            description: `Estimated ${whaleDistribution.toFixed(1)}% of tokens held by top wallets.`,
-            severity: "Medium"
-          });
-        }
-      }
-
-      // Honeypot detection simulation
-      if (!liquidityLocked && priceChange24h > 30) {
-        honeypotRisk = true;
-        securityScore -= 4;
-        warnings.push({
-          type: "Potential Honeypot",
-          description: "Token shows signs of honeypot behavior - easy to buy but may be difficult to sell.",
+      return {
+        riskFactors: 5,
+        pumpDumpDetection: "❌ Critical Risk - Token Not Found",
+        warnings: [{
+          type: "Token Not Listed",
+          description: "Token not found on major DEX platforms. Extreme caution advised.",
           severity: "Critical"
-        });
-      }
+        }]
+      };
     }
 
-    // Calculate overall score
-    const overallScore = Math.max(0, Math.min(10, (securityScore + liquidityScore + distributionScore + manipulationScore) / 4));
+    const priceChange1h = tokenData.priceChange?.h1 || 0;
+    const priceChange24h = tokenData.priceChange?.h24 || 0;
+    const marketCap = tokenData.marketCap || 0;
+    const liquidity = tokenData.liquidity?.usd || 0;
+    const volume24h = tokenData.volume?.h24 || 0;
+
+    // Risk Factor 1: Extreme 1h price changes
+    if (Math.abs(priceChange1h) >= 30) {
+      riskFactors++;
+      warnings.push({
+        type: "Extreme 1h Price Movement",
+        description: `Price changed ${priceChange1h.toFixed(2)}% in 1 hour. Classic pump & dump pattern.`,
+        severity: Math.abs(priceChange1h) >= 50 ? "Critical" : "High"
+      });
+    }
+
+    // Risk Factor 2: Massive 24h gains
+    if (priceChange24h >= 300) {
+      riskFactors++;
+      warnings.push({
+        type: "Massive 24h Gain",
+        description: `${priceChange24h.toFixed(2)}% gain in 24h indicates potential pump scheme.`,
+        severity: "Critical"
+      });
+    }
+
+    // Risk Factor 3: Low market cap
+    if (marketCap < 5000000) {
+      riskFactors++;
+      warnings.push({
+        type: "Low Market Cap",
+        description: `Market cap under $5M ($${marketCap.toLocaleString()}) makes token vulnerable to manipulation.`,
+        severity: "High"
+      });
+    }
+
+    // Risk Factor 4: Low liquidity
+    if (liquidity < 100000) {
+      riskFactors++;
+      warnings.push({
+        type: "Low Liquidity",
+        description: `Liquidity under $100K ($${liquidity.toLocaleString()}) creates high slippage risk.`,
+        severity: "High"
+      });
+    }
+
+    // Risk Factor 5: Very new token
+    if (ageHours < 72) {
+      riskFactors++;
+      warnings.push({
+        type: "New Token",
+        description: `Token is only ${ageHours.toFixed(1)} hours old. New tokens are high risk.`,
+        severity: "Medium"
+      });
+    }
+
+    // Risk Factor 6: Abnormal volume ratio
+    const volumeToMarketCapRatio = marketCap > 0 ? volume24h / marketCap : 0;
+    if (volumeToMarketCapRatio > 3) {
+      riskFactors++;
+      warnings.push({
+        type: "Abnormal Trading Volume",
+        description: `Volume/MarketCap ratio of ${volumeToMarketCapRatio.toFixed(2)} suggests artificial trading.`,
+        severity: "High"
+      });
+    }
+
+    // Determine pump & dump risk
+    let pumpDumpDetection: string;
+    if (riskFactors >= 3) {
+      pumpDumpDetection = "❌ High Risk of Pump and Dump";
+    } else if (riskFactors === 2) {
+      pumpDumpDetection = "⚠️ Moderate Risk";
+    } else {
+      pumpDumpDetection = "✅ Low Risk";
+    }
+
+    return { riskFactors, pumpDumpDetection, warnings };
+  };
+
+  const analyzeToken = (tokenData: TokenData | null, address: string): AnalysisResult => {
+    // Calculate token age
+    const currentTime = Date.now();
+    const createdTime = tokenData?.pairCreatedAt ? tokenData.pairCreatedAt * 1000 : currentTime;
+    const ageHours = (currentTime - createdTime) / (1000 * 60 * 60);
+
+    // Run pump & dump detection
+    const detection = detectPumpAndDump(tokenData, ageHours);
     
+    // Additional analysis
+    const liquidityLocked = tokenData?.liquidity?.usd ? tokenData.liquidity.usd > 25000 : false;
+    const whaleDistribution = tokenData?.liquidity?.usd && tokenData.liquidity.usd < 50000 ? 
+      70 + Math.random() * 20 : 20 + Math.random() * 30;
+    const honeypotRisk = !liquidityLocked && (tokenData?.priceChange?.h24 || 0) > 30;
+    const priceManipulation = Math.abs(tokenData?.priceChange?.h24 || 0) > 50;
+    const volumeToMarketCapRatio = tokenData?.marketCap && tokenData?.volume?.h24 ? 
+      tokenData.volume.h24 / tokenData.marketCap : 0;
+
+    // Calculate risk score (1-10, lower is riskier)
+    const baseScore = 10 - detection.riskFactors * 1.5;
+    const riskScore = Math.max(1, Math.min(10, baseScore));
+
     // Determine risk level
     let riskLevel: string;
-    if (overallScore >= 8) riskLevel = "Low";
-    else if (overallScore >= 6) riskLevel = "Medium"; 
-    else if (overallScore >= 3) riskLevel = "High";
+    if (riskScore >= 8) riskLevel = "Low";
+    else if (riskScore >= 6) riskLevel = "Medium";
+    else if (riskScore >= 3) riskLevel = "High";
     else riskLevel = "Critical";
 
     return {
@@ -267,25 +249,24 @@ const Scanner = () => {
         price: tokenData?.priceUsd ? `$${parseFloat(tokenData.priceUsd).toFixed(8)}` : "N/A",
         marketCap: tokenData?.marketCap ? `$${tokenData.marketCap.toLocaleString()}` : "N/A",
         volume24h: tokenData?.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A",
-        liquidity: tokenData?.liquidity?.usd ? `$${tokenData.liquidity.usd.toLocaleString()}` : "N/A"
+        liquidity: tokenData?.liquidity?.usd ? `$${tokenData.liquidity.usd.toLocaleString()}` : "N/A",
+        priceChange1h: tokenData?.priceChange?.h1 ? `${tokenData.priceChange.h1.toFixed(2)}%` : "N/A",
+        priceChange24h: tokenData?.priceChange?.h24 ? `${tokenData.priceChange.h24.toFixed(2)}%` : "N/A",
+        ageHours: ageHours > 24 ? `${(ageHours / 24).toFixed(1)} days` : `${ageHours.toFixed(1)} hours`
       },
-      scores: {
-        overall: parseFloat(overallScore.toFixed(1)),
-        security: Math.max(0, securityScore),
-        liquidity: Math.max(0, liquidityScore),
-        distribution: Math.max(0, distributionScore),
-        manipulation: Math.max(0, manipulationScore)
-      },
+      riskScore: parseFloat(riskScore.toFixed(1)),
       riskLevel,
+      pumpDumpDetection: detection.pumpDumpDetection,
+      riskFactors: detection.riskFactors,
       analysis: {
         liquidityLocked,
         whaleDistribution: parseFloat(whaleDistribution.toFixed(1)),
         honeypotRisk,
         priceManipulation,
-        rugPullRisk: Math.min(100, rugPullRisk),
-        liquidityScore: Math.max(0, liquidityScore)
+        rugPullRisk: Math.min(100, detection.riskFactors * 15 + (honeypotRisk ? 25 : 0)),
+        volumeToMarketCapRatio: parseFloat(volumeToMarketCapRatio.toFixed(2))
       },
-      warnings
+      warnings: detection.warnings
     };
   };
 
@@ -489,7 +470,7 @@ const Scanner = () => {
                 <div className="space-y-6">
                   {/* Token Info */}
                   <div className="p-4 bg-secondary/30 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-lg">
                         {scanResult.tokenInfo.name} ({scanResult.tokenInfo.symbol})
                       </h3>
@@ -497,7 +478,8 @@ const Scanner = () => {
                         {scanResult.riskLevel} Risk
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                       <div>
                         <span className="text-muted-foreground">Price:</span>
                         <div className="font-medium">{scanResult.tokenInfo.price}</div>
@@ -507,6 +489,18 @@ const Scanner = () => {
                         <div className="font-medium">{scanResult.tokenInfo.marketCap}</div>
                       </div>
                       <div>
+                        <span className="text-muted-foreground">1H Change:</span>
+                        <div className={`font-medium ${scanResult.tokenInfo.priceChange1h.includes('-') ? 'text-red-400' : 'text-green-400'}`}>
+                          {scanResult.tokenInfo.priceChange1h}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">24H Change:</span>
+                        <div className={`font-medium ${scanResult.tokenInfo.priceChange24h.includes('-') ? 'text-red-400' : 'text-green-400'}`}>
+                          {scanResult.tokenInfo.priceChange24h}
+                        </div>
+                      </div>
+                      <div>
                         <span className="text-muted-foreground">24h Volume:</span>
                         <div className="font-medium">{scanResult.tokenInfo.volume24h}</div>
                       </div>
@@ -514,41 +508,32 @@ const Scanner = () => {
                         <span className="text-muted-foreground">Liquidity:</span>
                         <div className="font-medium">{scanResult.tokenInfo.liquidity}</div>
                       </div>
+                      <div>
+                        <span className="text-muted-foreground">Age:</span>
+                        <div className="font-medium">{scanResult.tokenInfo.ageHours}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Risk Factors:</span>
+                        <div className="font-medium text-warning-orange">{scanResult.riskFactors}/6</div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Risk Score */}
-                  <div className="text-center p-6 bg-secondary/50 rounded-lg">
-                    <div className={`text-4xl font-bold mb-2 ${getRiskTextColor(scanResult.riskLevel)}`}>
-                      {scanResult.scores.overall}/10
-                    </div>
-                    <div className="text-sm text-muted-foreground">Overall Risk Score</div>
-                  </div>
-
-                  {/* Detailed Scores */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-secondary/30 rounded-lg">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-primary">{scanResult.scores.security}/10</div>
-                        <div className="text-xs text-muted-foreground">Security</div>
+                  {/* Risk Score & Pump Dump Detection */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="text-center p-6 bg-secondary/50 rounded-lg">
+                      <div className={`text-4xl font-bold mb-2 ${getRiskTextColor(scanResult.riskLevel)}`}>
+                        {scanResult.riskScore}/10
                       </div>
+                      <div className="text-sm text-muted-foreground">Risk Score</div>
                     </div>
-                    <div className="p-3 bg-secondary/30 rounded-lg">
+                    
+                    <div className="p-6 bg-secondary/50 rounded-lg">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-400">{scanResult.scores.liquidity}/10</div>
-                        <div className="text-xs text-muted-foreground">Liquidity</div>
-                      </div>
-                    </div>
-                    <div className="p-3 bg-secondary/30 rounded-lg">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-400">{scanResult.scores.distribution}/10</div>
-                        <div className="text-xs text-muted-foreground">Distribution</div>
-                      </div>
-                    </div>
-                    <div className="p-3 bg-secondary/30 rounded-lg">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-orange-400">{scanResult.scores.manipulation}/10</div>
-                        <div className="text-xs text-muted-foreground">Manipulation</div>
+                        <div className="text-xl font-bold mb-2">
+                          {scanResult.pumpDumpDetection}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Pump & Dump Analysis</div>
                       </div>
                     </div>
                   </div>
@@ -579,6 +564,16 @@ const Scanner = () => {
                       
                       <div className="flex items-center justify-between p-3 bg-secondary/30 rounded">
                         <div className="flex items-center space-x-2">
+                          <Activity className="h-4 w-4 text-blue-400" />
+                          <span>Volume/MarketCap Ratio</span>
+                        </div>
+                        <Badge variant="outline">
+                          {scanResult.analysis.volumeToMarketCapRatio}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex items-center justify-between p-3 bg-secondary/30 rounded">
+                        <div className="flex items-center space-x-2">
                           <AlertTriangle className="h-4 w-4 text-warning-orange" />
                           <span>Rug Pull Risk</span>
                         </div>
@@ -586,6 +581,16 @@ const Scanner = () => {
                           <Progress value={scanResult.analysis.rugPullRisk} className="w-20 h-2" />
                           <span className="text-sm font-medium">{scanResult.analysis.rugPullRisk}%</span>
                         </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between p-3 bg-secondary/30 rounded">
+                        <div className="flex items-center space-x-2">
+                          <Shield className="h-4 w-4 text-red-400" />
+                          <span>Honeypot Risk</span>
+                        </div>
+                        <Badge variant={scanResult.analysis.honeypotRisk ? "destructive" : "default"}>
+                          {scanResult.analysis.honeypotRisk ? "High" : "Low"}
+                        </Badge>
                       </div>
                     </div>
                   </div>
