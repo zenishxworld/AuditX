@@ -53,21 +53,59 @@ const Chatbot = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentMessage = inputMessage;
     setInputMessage('');
     setIsTyping(true);
 
-    // Simulate API call to GPT
-    setTimeout(() => {
+    try {
+      // Call our Supabase edge function
+      const response = await fetch('https://dzjotrzhwubdatmpjdmc.supabase.co/functions/v1/chatbot-ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: currentMessage }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: generateBotResponse(inputMessage),
+        content: data.response || 'Sorry, I could not generate a response.',
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, botResponse]);
+    } catch (error) {
+      console.error('Error calling AI:', error);
+      
+      // Fallback to static response if API fails
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: generateBotResponse(currentMessage),
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, botResponse]);
+      
+      toast({
+        title: "Connection Error",
+        description: "Using fallback responses. Please check your connection.",
+        variant: "destructive"
+      });
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const generateBotResponse = (userInput: string): string => {
