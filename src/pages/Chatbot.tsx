@@ -88,21 +88,15 @@ const Chatbot = () => {
     } catch (error) {
       console.error('Error calling AI:', error);
       
-      // Fallback to static response if API fails
-      const botResponse: Message = {
+      // Show error message instead of fallback
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: generateBotResponse(currentMessage),
+        content: `❌ Error: Unable to connect to AI service. ${error instanceof Error ? error.message : 'Please try again later.'}`,
         timestamp: new Date()
       };
 
-      setMessages(prev => [...prev, botResponse]);
-      
-      toast({
-        title: "Connection Error",
-        description: "Using fallback responses. Please check your connection.",
-        variant: "destructive"
-      });
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsTyping(false);
     }

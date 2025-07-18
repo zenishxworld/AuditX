@@ -46,20 +46,11 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'meta-llama/Llama-2-7b-chat-hf',
+        model: 'mistralai/Mixtral-8x7B-Instruct',
         messages: [
           {
             role: 'system',
-            content: `You are a Web3 and smart contract expert assistant. You provide clear, accurate, and helpful answers about:
-- Solidity programming and best practices
-- Smart contract security and vulnerabilities
-- Gas optimization techniques
-- DeFi protocols and patterns
-- Blockchain concepts and implementations
-- Testing and deployment strategies
-- ERC standards (ERC20, ERC721, etc.)
-
-Always provide practical examples with code when relevant. Keep responses concise but comprehensive. Format code blocks properly with triple backticks and specify the language.`
+            content: 'You are a Web3 and smart contract expert. Answer clearly.'
           },
           {
             role: 'user',
