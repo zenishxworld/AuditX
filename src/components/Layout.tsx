@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import Navbar from './Navbar';
+import AuthModal from './AuthModal';
 import { Toaster } from '@/components/ui/toaster';
 
 interface LayoutProps {
@@ -13,6 +14,7 @@ const Layout = ({ children }: LayoutProps) => {
       <main className="pt-16">
         {children}
       </main>
+      <AuthModal />
       <Toaster />
     </div>
   );

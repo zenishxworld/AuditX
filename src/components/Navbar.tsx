@@ -1,23 +1,32 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Shield, Zap, MessageCircle, BarChart3, CreditCard, User, BookOpen } from 'lucide-react';
+import { Menu, X, Shield, Zap, MessageCircle, BarChart3, CreditCard, User, BookOpen, LogOut } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user, openAuthModal, logout } = useAuth();
 
   const navItems = [
     { name: 'Home', href: '/', icon: Shield },
-    { name: 'Audit', href: '/audit', icon: Shield },
-    { name: 'Scanner', href: '/scanner', icon: BarChart3 },
-    { name: 'Chatbot', href: '/chatbot', icon: MessageCircle },
-    { name: 'Dashboard', href: '/dashboard', icon: User },
+    { name: 'Audit', href: '/audit', icon: Shield, protected: true },
+    { name: 'Scanner', href: '/scanner', icon: BarChart3, protected: true },
+    { name: 'Chatbot', href: '/chatbot', icon: MessageCircle, protected: true },
+    { name: 'Dashboard', href: '/dashboard', icon: User, protected: true },
     { name: 'Pricing', href: '/pricing', icon: CreditCard },
     { name: 'Docs', href: '/docs', icon: BookOpen },
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleNavClick = (item: any, e: React.MouseEvent) => {
+    if (item.protected && !user) {
+      e.preventDefault();
+      openAuthModal();
+    }
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
@@ -40,6 +49,7 @@ const Navbar = () => {
               <Link
                 key={item.name}
                 to={item.href}
+                onClick={(e) => handleNavClick(item, e)}
                 className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                   isActive(item.href)
                     ? 'bg-primary text-primary-foreground shadow-glow'
@@ -54,12 +64,26 @@ const Navbar = () => {
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center space-x-2">
-            <Button variant="outline" size="sm">
-              Login
-            </Button>
-            <Button size="sm" className="bg-gradient-primary hover:opacity-90">
-              Sign Up
-            </Button>
+            {user ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">
+                  {user.email}
+                </span>
+                <Button variant="outline" size="sm" onClick={logout}>
+                  <LogOut className="h-4 w-4 mr-1" />
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={openAuthModal}>
+                  Login
+                </Button>
+                <Button size="sm" className="bg-gradient-primary hover:opacity-90" onClick={openAuthModal}>
+                  Sign Up
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -89,19 +113,36 @@ const Navbar = () => {
                     ? 'bg-primary text-primary-foreground shadow-glow'
                     : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                 }`}
-                onClick={() => setIsOpen(false)}
+                onClick={(e) => {
+                  handleNavClick(item, e);
+                  if (!item.protected || user) setIsOpen(false);
+                }}
               >
                 <item.icon className="h-5 w-5" />
                 <span>{item.name}</span>
               </Link>
             ))}
             <div className="flex flex-col space-y-2 px-3 pt-4 border-t border-border">
-              <Button variant="outline" size="sm" className="w-full">
-                Login
-              </Button>
-              <Button size="sm" className="w-full bg-gradient-primary hover:opacity-90">
-                Sign Up
-              </Button>
+              {user ? (
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground text-center">
+                    {user.email}
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full" onClick={logout}>
+                    <LogOut className="h-4 w-4 mr-1" />
+                    Logout
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button variant="outline" size="sm" className="w-full" onClick={openAuthModal}>
+                    Login
+                  </Button>
+                  <Button size="sm" className="w-full bg-gradient-primary hover:opacity-90" onClick={openAuthModal}>
+                    Sign Up
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
