@@ -18,24 +18,66 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          file_name: string | null
           id: string
           report: Json
+          report_url: string | null
+          score: number | null
           updated_at: string
           user_id: string | null
+          vulnerabilities: Json | null
         }
         Insert: {
           code: string
           created_at?: string
+          file_name?: string | null
           id?: string
           report: Json
+          report_url?: string | null
+          score?: number | null
           updated_at?: string
           user_id?: string | null
+          vulnerabilities?: Json | null
         }
         Update: {
           code?: string
           created_at?: string
+          file_name?: string | null
           id?: string
           report?: Json
+          report_url?: string | null
+          score?: number | null
+          updated_at?: string
+          user_id?: string | null
+          vulnerabilities?: Json | null
+        }
+        Relationships: []
+      }
+      chats: {
+        Row: {
+          created_at: string
+          id: string
+          message_count: number
+          status: string
+          topic: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_count?: number
+          status?: string
+          topic: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_count?: number
+          status?: string
+          topic?: string
           updated_at?: string
           user_id?: string | null
         }
@@ -59,28 +101,37 @@ export type Database = {
       token_scans: {
         Row: {
           address: string
+          chain: string | null
           created_at: string
           id: string
           network: string
           result: Json
+          risk: string | null
+          token_name: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
           address: string
+          chain?: string | null
           created_at?: string
           id?: string
           network: string
           result: Json
+          risk?: string | null
+          token_name?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           address?: string
+          chain?: string | null
           created_at?: string
           id?: string
           network?: string
           result?: Json
+          risk?: string | null
+          token_name?: string | null
           updated_at?: string
           user_id?: string | null
         }
