@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { getFreePlanUsage, FREE_LIMITS } from '@/lib/planLimits';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Audit = () => {
   const [code, setCode] = useState('');
@@ -23,6 +25,27 @@ const Audit = () => {
   const [auditResult, setAuditResult] = useState<AuditReport | null>(null);
   const { toast } = useToast();
   const [limitModalOpen, setLimitModalOpen] = useState(false);
+  const [auditCount, setAuditCount] = useState(0);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchAuditCount = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { count } = await supabase
+          .from('audit_reports')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', session.user.id);
+        setAuditCount(count || 0);
+      }
+    };
+    fetchAuditCount();
+  }, []);
+
+  const extractContractName = (code: string): string | null => {
+    const match = code.match(/contract\s+(\w+)/);
+    return match ? match[1] : null;
+  };
 
   const handleAudit = async () => {
     if (!code.trim()) {
@@ -44,6 +67,10 @@ const Audit = () => {
       // Save to Supabase if user is logged in
       const { data: { session } } = await supabase.auth.getSession();
       
+      let fileName = extractContractName(code);
+      if (!fileName) fileName = `Audit ${auditCount + 1}`;
+      const score = typeof auditReport.overallScore === 'number' ? auditReport.overallScore : null;
+
       if (session?.user) {
         const usage = await getFreePlanUsage(session.user.id);
         if (usage.audits >= FREE_LIMITS.audits) {
@@ -51,16 +78,37 @@ const Audit = () => {
           setIsAuditing(false);
           return;
         }
-        const { error } = await supabase
+        const { error, data } = await supabase
           .from('audit_reports')
           .insert({
             user_id: session.user.id,
             code: code,
+            file_name: fileName,
+            score: score,
             report: auditReport as any
           });
-          
+        // Debug logging and toast
+        console.log('Supabase insert result:', { error, data });
+        if (error || data) {
+          toast({
+            title: error ? 'Insert Error' : 'Insert Success',
+            description: error ? (typeof error.message === 'string' ? error.message : JSON.stringify(error)) : JSON.stringify(data),
+            variant: error ? 'destructive' : 'default',
+            duration: 20000
+          });
+        } else {
+          toast({
+            title: 'Insert Unknown',
+            description: 'No error and no data returned from Supabase insert.',
+            variant: 'destructive',
+            duration: 20000
+          });
+        }
         if (error) {
           console.error('Error saving audit report:', error);
+        } else {
+          setAuditCount((prev) => prev + 1);
+          // Do not navigate away, let the dashboard update naturally
         }
       }
       
@@ -71,7 +119,7 @@ const Audit = () => {
         title: "Audit Complete",
         description: `Found ${auditReport.vulnerabilities.length} issues. Overall score: ${auditReport.overallScore}/10`,
       });
-      
+
     } catch (error) {
       console.error('Error during audit:', error);
       setIsAuditing(false);
