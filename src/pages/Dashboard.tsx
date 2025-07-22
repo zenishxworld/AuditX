@@ -24,6 +24,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { FREE_LIMITS } from '@/lib/planLimits';
 
 interface AuditReport {
   id: string;
@@ -148,36 +149,50 @@ const Dashboard = () => {
 
     try {
       let error;
-      
+      let deleted = false;
       if (type === 'audit') {
-        ({ error } = await supabase
+        const { error: delError, count } = await supabase
           .from('audit_reports')
-          .delete()
+          .delete({ count: 'exact' })
           .eq('id', id)
-          .eq('user_id', user.id));
+          .eq('user_id', user.id);
+        error = delError;
+        deleted = !error && count && count > 0;
+        if (deleted) setAudits((prev) => prev.filter((a) => a.id !== id));
       } else if (type === 'token') {
-        ({ error } = await supabase
+        const { error: delError, count } = await supabase
           .from('token_scans')
-          .delete()
+          .delete({ count: 'exact' })
           .eq('id', id)
-          .eq('user_id', user.id));
+          .eq('user_id', user.id);
+        error = delError;
+        deleted = !error && count && count > 0;
+        if (deleted) setTokens((prev) => prev.filter((t) => t.id !== id));
       } else if (type === 'chat') {
-        ({ error } = await supabase
+        const { error: delError, count } = await supabase
           .from('chats')
-          .delete()
+          .delete({ count: 'exact' })
           .eq('id', id)
-          .eq('user_id', user.id));
+          .eq('user_id', user.id);
+        error = delError;
+        deleted = !error && count && count > 0;
+        if (deleted) setChats((prev) => prev.filter((c) => c.id !== id));
       }
 
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Item deleted successfully.",
-      });
-
-      // Refresh data
-      fetchDashboardData();
+      if (deleted) {
+        toast({
+          title: "Success",
+          description: "Item deleted successfully.",
+        });
+        await fetchDashboardData();
+      } else {
+        toast({
+          title: "Error",
+          description: "Item could not be deleted. Please try again.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error('Error deleting item:', error);
       toast({
@@ -226,6 +241,13 @@ const Dashboard = () => {
 
   const truncateAddress = (address: string) => {
     return `${address.slice(0, 10)}...${address.slice(-8)}`;
+  };
+
+  const getAuditRiskLevel = (score: number | null) => {
+    if (score === null || score === undefined) return { label: 'Unknown', color: 'bg-gray-500/20 text-gray-400' };
+    if (score < 50) return { label: 'High Risk', color: 'bg-red-500/20 text-red-400' };
+    if (score < 80) return { label: 'Medium Risk', color: 'bg-yellow-500/20 text-yellow-400' };
+    return { label: 'Low Risk', color: 'bg-green-500/20 text-green-400' };
   };
 
   if (loading) {
@@ -309,10 +331,11 @@ const Dashboard = () => {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="audits">Audit History</TabsTrigger>
             <TabsTrigger value="scans">Token Scans</TabsTrigger>
             <TabsTrigger value="chats">Chat History</TabsTrigger>
+            <TabsTrigger value="billing">Billing</TabsTrigger>
           </TabsList>
           
           <TabsContent value="audits" className="mt-6">
@@ -333,51 +356,38 @@ const Dashboard = () => {
                       No audits found. Start by auditing your first smart contract!
                     </div>
                   ) : (
-                    audits.map((audit) => (
-                      <div key={audit.id} className="p-4 bg-secondary/30 rounded-lg border border-border">
-                        <div className="flex items-center justify-between">
+                    audits.map((audit) => {
+                      const risk = getAuditRiskLevel(audit.score);
+                      return (
+                        <div key={audit.id} className="p-4 bg-secondary/30 rounded-lg border border-border flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                           <div className="flex items-center space-x-4">
                             <div className="p-2 bg-primary/20 rounded">
                               <FileText className="h-4 w-4 text-primary" />
                             </div>
                             <div>
-                              <h3 className="font-medium">{audit.file_name || 'Unknown Contract'}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {formatDate(audit.created_at)} • {audit.vulnerabilities ? Object.keys(audit.vulnerabilities).length : 0} vulnerabilities found
-                              </p>
+                              <h3 className="font-medium text-lg">{audit.file_name || 'Unknown Contract'}</h3>
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                                <span className="text-sm text-muted-foreground">{formatDate(audit.created_at)}</span>
+                                <span className="text-sm text-muted-foreground">Score: {audit.score !== null ? audit.score : '—'}</span>
+                                <Badge className={risk.color}>{risk.label}</Badge>
+                              </div>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                              <div className={`text-lg font-bold ${getScoreColor(audit.score || 0)}`}>
-                                {audit.score ? `${audit.score}/10` : '—'}
-                              </div>
-                              <Badge variant="outline">Completed</Badge>
-                            </div>
-                            <div className="flex space-x-2">
-                              <Button size="sm" variant="outline" onClick={() => handleView(audit, 'audit')}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                View
+                          <div className="flex items-center space-x-2 mt-2 md:mt-0">
+                            <Button size="sm" variant="outline" onClick={() => handleView(audit, 'audit')}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                            {audit.report_url && (
+                              <Button size="sm" variant="outline" onClick={() => handleDownload(audit.report_url!)}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Download
                               </Button>
-                              {audit.report_url && (
-                                <Button size="sm" variant="outline" onClick={() => handleDownload(audit.report_url!)}>
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Download
-                                </Button>
-                              )}
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleDelete('audit', audit.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </CardContent>
@@ -403,41 +413,26 @@ const Dashboard = () => {
                     </div>
                   ) : (
                     tokens.map((token) => (
-                      <div key={token.id} className="p-4 bg-secondary/30 rounded-lg border border-border">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="p-2 bg-primary/20 rounded">
-                              <BarChart3 className="h-4 w-4 text-primary" />
-                            </div>
-                            <div>
-                              <h3 className="font-medium">{token.token_name || 'Unknown Token'}</h3>
-                              <p className="text-sm text-muted-foreground font-mono">
-                                {truncateAddress(token.address)}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatDate(token.created_at)} • {token.chain || 'Unknown Chain'}
-                              </p>
+                      <div key={token.id} className="p-4 bg-secondary/30 rounded-lg border border-border flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="p-2 bg-primary/20 rounded">
+                            <BarChart3 className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-lg">{token.token_name || 'Unknown Token'}</h3>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <span className="text-sm text-muted-foreground font-mono">{truncateAddress(token.address)}</span>
+                              <Badge className={getRiskColor(token.risk || 'unknown')}>{token.risk || 'Unknown'} Risk</Badge>
+                              <span className="text-xs text-muted-foreground">{token.chain || 'Unknown Chain'}</span>
+                              <span className="text-xs text-muted-foreground">{formatDate(token.created_at)}</span>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-4">
-                            <Badge className={getRiskColor(token.risk || 'unknown')}>
-                              {token.risk || 'Unknown'} Risk
-                            </Badge>
-                            <div className="flex space-x-2">
-                              <Button size="sm" variant="outline" onClick={() => handleView(token, 'token')}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                View
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleDelete('token', token.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 mt-2 md:mt-0">
+                          <Button size="sm" variant="outline" onClick={() => handleView(token, 'token')}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
                         </div>
                       </div>
                     ))
@@ -486,14 +481,6 @@ const Dashboard = () => {
                                 <Eye className="h-4 w-4 mr-2" />
                                 View
                               </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleDelete('chat', chat.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
                             </div>
                           </div>
                         </div>
@@ -501,6 +488,41 @@ const Dashboard = () => {
                     ))
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="billing" className="mt-6">
+            <Card className="bg-gradient-card border-border max-w-lg mx-auto">
+              <CardHeader>
+                <CardTitle>Free Plan Usage</CardTitle>
+                <CardDescription>Track your current usage and upgrade for more features.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>Contract Audits</span>
+                    <span>{stats.totalAudits} / {FREE_LIMITS.audits}</span>
+                  </div>
+                  <Progress value={(stats.totalAudits / FREE_LIMITS.audits) * 100} className="h-2" />
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>Token Scans</span>
+                    <span>{stats.tokensScanned} / {FREE_LIMITS.tokens}</span>
+                  </div>
+                  <Progress value={(stats.tokensScanned / FREE_LIMITS.tokens) * 100} className="h-2" />
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>Chat Messages</span>
+                    <span>{stats.chatMessages} / {FREE_LIMITS.chatMessages}</span>
+                  </div>
+                  <Progress value={(stats.chatMessages / FREE_LIMITS.chatMessages) * 100} className="h-2" />
+                </div>
+                <Button className="w-full mt-4" onClick={() => {/* navigate to pricing */}}>
+                  Upgrade Plan
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

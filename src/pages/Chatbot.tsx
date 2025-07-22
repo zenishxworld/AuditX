@@ -12,6 +12,8 @@ import {
   Trash2,
   Sparkles
 } from 'lucide-react';
+import { getFreePlanUsage, FREE_LIMITS } from '@/lib/planLimits';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface Message {
   id: string;
@@ -33,6 +35,7 @@ const Chatbot = () => {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -44,6 +47,16 @@ const Chatbot = () => {
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const usage = await getFreePlanUsage(user.id);
+      if (usage.chatMessages >= FREE_LIMITS.chatMessages) {
+        setLimitModalOpen(true);
+        setIsTyping(false);
+        return;
+      }
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -294,6 +307,17 @@ const Chatbot = () => {
           </div>
         </div>
       </div>
+      <Dialog open={limitModalOpen} onOpenChange={setLimitModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>⚠️ You’ve reached the Free Plan limit</DialogTitle>
+            <DialogDescription>
+              Upgrade your plan to continue using this feature.
+            </DialogDescription>
+          </DialogHeader>
+          <Button onClick={() => {/* navigate to pricing */}}>Upgrade Now</Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

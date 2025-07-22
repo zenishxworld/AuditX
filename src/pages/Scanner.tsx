@@ -20,6 +20,8 @@ import {
   Activity,
   Save
 } from 'lucide-react';
+import { getFreePlanUsage, FREE_LIMITS } from '@/lib/planLimits';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface TokenData {
   chainId?: string;
@@ -97,6 +99,7 @@ const Scanner = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<AnalysisResult | null>(null);
   const { toast } = useToast();
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
 
   const fetchTokenData = async (address: string): Promise<TokenData | null> => {
     try {
@@ -280,6 +283,9 @@ const Scanner = () => {
           user_id: user?.id || null,
           address: tokenAddress,
           network: selectedChain,
+          token_name: result.tokenInfo.name,
+          risk: result.riskLevel,
+          chain: selectedChain,
           result: result as any
         });
 
@@ -327,8 +333,17 @@ const Scanner = () => {
 
     setIsScanning(true);
     setScanResult(null);
-    
+
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const usage = await getFreePlanUsage(user.id);
+        if (usage.tokens >= FREE_LIMITS.tokens) {
+          setLimitModalOpen(true);
+          setIsScanning(false);
+          return;
+        }
+      }
       toast({
         title: "Scanning",
         description: "Fetching token data and analyzing risks...",
@@ -336,12 +351,12 @@ const Scanner = () => {
 
       const tokenData = await fetchTokenData(tokenAddress.trim());
       const analysis = analyzeToken(tokenData, tokenAddress.trim());
-      
+
       setScanResult(analysis);
-      
+
       // Save to Supabase
       await saveToSupabase(analysis);
-      
+
       toast({
         title: "Scan Complete",
         description: `Risk analysis complete - ${analysis.riskLevel} risk detected`,
@@ -628,6 +643,17 @@ const Scanner = () => {
           </Card>
         </div>
       </div>
+      <Dialog open={limitModalOpen} onOpenChange={setLimitModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>⚠️ You’ve reached the Free Plan limit</DialogTitle>
+            <DialogDescription>
+              Upgrade your plan to continue using this feature.
+            </DialogDescription>
+          </DialogHeader>
+          <Button onClick={() => {/* navigate to pricing */}}>Upgrade Now</Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

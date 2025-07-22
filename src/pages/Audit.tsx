@@ -14,12 +14,15 @@ import {
   Shield, 
   Download
 } from 'lucide-react';
+import { getFreePlanUsage, FREE_LIMITS } from '@/lib/planLimits';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const Audit = () => {
   const [code, setCode] = useState('');
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<AuditReport | null>(null);
   const { toast } = useToast();
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
 
   const handleAudit = async () => {
     if (!code.trim()) {
@@ -42,6 +45,12 @@ const Audit = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user) {
+        const usage = await getFreePlanUsage(session.user.id);
+        if (usage.audits >= FREE_LIMITS.audits) {
+          setLimitModalOpen(true);
+          setIsAuditing(false);
+          return;
+        }
         const { error } = await supabase
           .from('audit_reports')
           .insert({
@@ -221,6 +230,17 @@ contract MyContract {
           </Card>
         </div>
       </div>
+      <Dialog open={limitModalOpen} onOpenChange={setLimitModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>⚠️ You’ve reached the Free Plan limit</DialogTitle>
+            <DialogDescription>
+              Upgrade your plan to continue using this feature.
+            </DialogDescription>
+          </DialogHeader>
+          <Button onClick={() => {/* navigate to pricing */}}>Upgrade Now</Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
