@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Shield, Zap, MessageCircle, BarChart3, ArrowRight, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Hero = () => {
   const navigate = useNavigate();
@@ -34,6 +35,8 @@ const Hero = () => {
     }
   };
 
+  const { user, openAuthModal } = useAuth();
+
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Animated Background */}
@@ -47,10 +50,10 @@ const Hero = () => {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div className="max-w-4xl mx-auto">
           {/* Badge */}
-          <div className="inline-flex items-center space-x-2 bg-secondary/50 backdrop-blur-sm px-4 py-2 rounded-full mb-8 border border-border">
+          {/* <div className="inline-flex items-center space-x-2 bg-secondary/50 backdrop-blur-sm px-4 py-2 rounded-full mb-8 border border-border">
             <Star className="h-4 w-4 text-purple-primary" />
             <span className="text-sm font-medium">Trusted by 10,000+ developers</span>
-          </div>
+          </div> */}
 
           {/* Main Heading */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
@@ -74,7 +77,13 @@ const Hero = () => {
             <Button 
               size="lg" 
               className="bg-gradient-primary hover:opacity-90 text-lg px-8 py-6 shadow-glow animate-pulse-glow"
-              onClick={scrollToAudit}
+              onClick={() => {
+                if (!user) {
+                  openAuthModal();
+                } else {
+                  navigate('/audit');
+                }
+              }}
             >
               Audit Your Contract
               <ArrowRight className="ml-2 h-5 w-5" />
@@ -106,13 +115,6 @@ const Hero = () => {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Scroll Indicator */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-        <div className="w-6 h-10 border-2 border-purple-primary rounded-full flex justify-center">
-          <div className="w-1 h-3 bg-purple-primary rounded-full mt-2 animate-pulse" />
         </div>
       </div>
     </div>
