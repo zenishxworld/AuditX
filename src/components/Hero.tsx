@@ -1,7 +1,9 @@
 import { Button } from '@/components/ui/button';
 import { Shield, Zap, MessageCircle, BarChart3, ArrowRight, Star } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
+  const navigate = useNavigate();
   const features = [
     {
       icon: Shield,
@@ -81,6 +83,7 @@ const Hero = () => {
               size="lg" 
               variant="outline" 
               className="text-lg px-8 py-6 border-purple-primary/50 hover:bg-purple-primary/10"
+              onClick={() => navigate('/docs')}
             >
               Watch Demo
             </Button>
