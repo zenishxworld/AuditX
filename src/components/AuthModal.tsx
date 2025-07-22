@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,14 @@ const AuthModal = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { isAuthModalOpen, closeAuthModal } = useAuth();
+  const { isAuthModalOpen, closeAuthModal, isLoginMode } = useAuth();
+
+  // Set isLogin based on the context when the modal opens
+  useEffect(() => {
+    if (isAuthModalOpen) {
+      setIsLogin(isLoginMode);
+    }
+  }, [isAuthModalOpen, isLoginMode]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();

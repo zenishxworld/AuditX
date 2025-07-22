@@ -76,10 +76,10 @@ const Navbar = () => {
               </div>
             ) : (
               <>
-                <Button variant="outline" size="sm" onClick={openAuthModal}>
+                <Button variant="outline" size="sm" onClick={() => openAuthModal(true)}>
                   Login
                 </Button>
-                <Button size="sm" className="bg-gradient-primary hover:opacity-90" onClick={openAuthModal}>
+                <Button size="sm" className="bg-gradient-primary hover:opacity-90" onClick={() => openAuthModal(false)}>
                   Sign Up
                 </Button>
               </>
@@ -135,10 +135,10 @@ const Navbar = () => {
                 </div>
               ) : (
                 <>
-                  <Button variant="outline" size="sm" className="w-full" onClick={openAuthModal}>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => openAuthModal(true)}>
                     Login
                   </Button>
-                  <Button size="sm" className="w-full bg-gradient-primary hover:opacity-90" onClick={openAuthModal}>
+                  <Button size="sm" className="w-full bg-gradient-primary hover:opacity-90" onClick={() => openAuthModal(false)}>
                     Sign Up
                   </Button>
                 </>
