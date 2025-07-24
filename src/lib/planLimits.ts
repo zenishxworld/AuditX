@@ -1,8 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export const FREE_LIMITS = {
-  audits: 20,
-  tokens: 20,
+  audits: 5,
+  tokens: 3,
   chatMessages: 100,
 };
 

@@ -520,7 +520,10 @@ const Dashboard = () => {
                   </div>
                   <Progress value={(stats.chatMessages / FREE_LIMITS.chatMessages) * 100} className="h-2" />
                 </div>
-                <Button className="w-full mt-4" onClick={() => {/* navigate to pricing */}}>
+                <Button
+                  className="w-full mt-4"
+                  onClick={() => window.location.assign('/pricing')}
+                >
                   Upgrade Plan
                 </Button>
               </CardContent>

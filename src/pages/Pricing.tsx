@@ -51,7 +51,7 @@ const Pricing = () => {
       features: [
         { name: '50 contract audits per month', included: true },
         { name: 'Advanced security analysis', included: true },
-        { name: 'Unlimited token scans', included: true },
+        { name: '50 token scans per month', included: true },
         { name: 'Full chatbot access', included: true },
         { name: 'PDF report downloads', included: true },
         { name: 'Gas optimization tips', included: true },
