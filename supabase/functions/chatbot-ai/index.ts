@@ -1,9 +1,12 @@
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const DEEPSEEK_API_KEY = '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';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -24,29 +27,15 @@ serve(async (req) => {
       );
     }
 
-    const togetherApiKey = Deno.env.get('TOGETHER_API_KEY');
-    
-    if (!togetherApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Together AI API key not configured' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    console.log('Processing message:', message);
-
-    // Call Together AI API
-    const response = await fetch('https://api.together.xyz/v1/chat/completions', {
+    // Call DeepSeek API
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${togetherApiKey}`,
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'mistralai/Mixtral-8x7B-Instruct',
+        model: 'deepseek-chat',
         messages: [
           {
             role: 'system',
@@ -59,14 +48,13 @@ serve(async (req) => {
         ],
         max_tokens: 1000,
         temperature: 0.7,
-        top_p: 0.9,
-        stop: ['</s>']
+        top_p: 0.9
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Together AI API error:', response.status, errorText);
+      console.error('DeepSeek API error:', response.status, errorText);
       return new Response(
         JSON.stringify({ 
           error: `API request failed: ${response.status}`,
@@ -80,7 +68,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Together AI response:', data);
+    console.log('DeepSeek response:', data);
 
     const aiResponse = data.choices?.[0]?.message?.content;
     

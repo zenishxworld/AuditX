@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { getFreePlanUsage, FREE_LIMITS } from '@/lib/planLimits';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
   id: string;
