@@ -180,23 +180,24 @@ const Chatbot = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Suggested Questions */}
           <div className="lg:col-span-1">
-            <Card className="bg-gradient-card border-border">
+            <Card className="bg-gradient-card border-border h-full max-h-[600px] flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Sparkles className="h-5 w-5 text-purple-primary" />
                   <span>Suggested Questions</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="flex flex-col items-center justify-center space-y-2 overflow-y-auto max-h-[420px] custom-scrollbar pr-1">
                 {suggestedQuestions.map((question, index) => (
                   <Button
                     key={index}
                     variant="outline"
                     size="sm"
-                    className="w-full text-left text-xs h-auto p-2 justify-start"
+                    className="w-full max-w-full text-left text-xs h-auto p-2 justify-center overflow-hidden truncate"
                     onClick={() => setInputMessage(question)}
+                    title={question}
                   >
-                    {question}
+                    <span className="block truncate overflow-hidden text-ellipsis w-full">{question}</span>
                   </Button>
                 ))}
               </CardContent>

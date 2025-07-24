@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import { 
   Check,
   X,
@@ -19,6 +20,8 @@ const Pricing = () => {
   const [selectedPlan, setSelectedPlan] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const plans = [
     {
@@ -114,81 +117,95 @@ const Pricing = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          {plans.map((plan) => (
-            <Card
-              key={plan.name}
-              className={`relative bg-gradient-card border-border transition-all duration-300 hover:shadow-glow ${
-                plan.popular ? 'ring-2 ring-purple-primary shadow-glow' : ''
-              }`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-gradient-primary text-primary-foreground px-4 py-1">
-                    Most Popular
-                  </Badge>
-                </div>
-              )}
-              
-              <CardHeader className="text-center">
-                <div className="flex justify-center mb-4">
-                  <div className="p-3 bg-purple-primary/20 rounded-full">
-                    <plan.icon className="h-8 w-8 text-purple-primary" />
+          {plans.map((plan) => {
+            const isHovered = hoveredPlan === plan.name;
+            const isPro = plan.name === 'Pro';
+            // Highlight if hovered, or if Pro and nothing else is hovered
+            const highlight = isHovered || (isPro && !hoveredPlan);
+            return (
+              <Card
+                key={plan.name}
+                className={`relative bg-gradient-card border-border transition-all duration-300 ${
+                  highlight ? 'ring-2 ring-purple-primary shadow-glow' : ''
+                }`}
+                onMouseEnter={() => setHoveredPlan(plan.name)}
+                onMouseLeave={() => setHoveredPlan(null)}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-gradient-primary text-primary-foreground px-4 py-1">
+                      Most Popular
+                    </Badge>
                   </div>
-                </div>
-                <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  {plan.description}
-                </CardDescription>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-purple-primary">
-                    {plan.price}
-                  </span>
-                  <span className="text-muted-foreground">/{plan.period}</span>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  {plan.features.map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-3">
-                      {feature.included ? (
-                        <Check className="h-4 w-4 text-neon-green" />
-                      ) : (
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <span
-                        className={`text-sm ${
-                          feature.included ? 'text-foreground' : 'text-muted-foreground'
-                        }`}
-                      >
-                        {feature.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                )}
                 
-                <Button
-                  onClick={() => handlePayment(plan.name)}
-                  disabled={isProcessing && selectedPlan === plan.name}
-                  className={`w-full ${
-                    plan.popular
-                      ? 'bg-gradient-primary hover:opacity-90'
-                      : 'bg-secondary hover:bg-secondary/80'
-                  }`}
-                  size="lg"
-                >
-                  {isProcessing && selectedPlan === plan.name ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
-                      Processing...
-                    </>
-                  ) : (
-                    plan.cta
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                <CardHeader className="text-center">
+                  <div className="flex justify-center mb-4">
+                    <div className="p-3 bg-purple-primary/20 rounded-full">
+                      <plan.icon className="h-8 w-8 text-purple-primary" />
+                    </div>
+                  </div>
+                  <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    {plan.description}
+                  </CardDescription>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold text-purple-primary">
+                      {plan.price}
+                    </span>
+                    <span className="text-muted-foreground">/{plan.period}</span>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    {plan.features.map((feature, index) => (
+                      <div key={index} className="flex items-center space-x-3">
+                        {feature.included ? (
+                          <Check className="h-4 w-4 text-neon-green" />
+                        ) : (
+                          <X className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span
+                          className={`text-sm ${
+                            feature.included ? 'text-foreground' : 'text-muted-foreground'
+                          }`}
+                        >
+                          {feature.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <Button
+                    onClick={() => {
+                      if (plan.name === 'Free') {
+                        navigate('/');
+                      } else {
+                        handlePayment(plan.name);
+                      }
+                    }}
+                    disabled={isProcessing && selectedPlan === plan.name}
+                    className={`w-full ${
+                      highlight
+                        ? 'bg-gradient-primary hover:opacity-90'
+                        : 'bg-secondary hover:bg-secondary/80'
+                    }`}
+                    size="lg"
+                  >
+                    {isProcessing && selectedPlan === plan.name ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                        Processing...
+                      </>
+                    ) : (
+                      plan.cta
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* FAQ Section */}
