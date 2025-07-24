@@ -19,12 +19,14 @@ import {
   AlertTriangle,
   CheckCircle,
   Star,
-  Loader2
+  Loader2,
+  Crown,
+  Infinity
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { FREE_LIMITS } from '@/lib/planLimits';
+import { FREE_LIMITS, PRO_LIMITS, PREMIUM_LIMITS, getUserPlan, getUserUsage, PlanType, getPlanLimits } from '@/lib/planLimits';
 
 interface AuditReport {
   id: string;
@@ -57,6 +59,7 @@ interface DashboardStats {
   tokensScanned: number;
   chatMessages: number;
   avgScore: number;
+  planType: PlanType;
 }
 
 const Dashboard = () => {
@@ -68,7 +71,8 @@ const Dashboard = () => {
     totalAudits: 0,
     tokensScanned: 0,
     chatMessages: 0,
-    avgScore: 0
+    avgScore: 0,
+    planType: 'Free'
   });
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -115,6 +119,9 @@ const Dashboard = () => {
 
       if (chatsError) throw chatsError;
 
+      // Get user's subscription plan
+      const planType = await getUserPlan(user.id);
+
       setAudits(auditsData || []);
       setTokens(tokensData || []);
       setChats(chatsData || []);
@@ -129,7 +136,8 @@ const Dashboard = () => {
         totalAudits: auditsData?.length || 0,
         tokensScanned: tokensData?.length || 0,
         chatMessages: totalChatMessages,
-        avgScore: Math.round(avgScore * 10) / 10
+        avgScore: Math.round(avgScore * 10) / 10,
+        planType
       });
 
     } catch (error) {
@@ -495,37 +503,159 @@ const Dashboard = () => {
           <TabsContent value="billing" className="mt-6">
             <Card className="bg-gradient-card border-border max-w-lg mx-auto">
               <CardHeader>
-                <CardTitle>Free Plan Usage</CardTitle>
-                <CardDescription>Track your current usage and upgrade for more features.</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>
+                      {stats.planType === 'Free' && 'Free Plan'}
+                      {stats.planType === 'Pro' && 'Pro Plan'}
+                      {stats.planType === 'Premium' && 'Premium Plan'}
+                    </CardTitle>
+                    <CardDescription>Your current subscription and usage</CardDescription>
+                  </div>
+                  <div className="p-3 bg-primary/20 rounded-full">
+                    {stats.planType === 'Free' && <Shield className="h-6 w-6 text-primary" />}
+                    {stats.planType === 'Pro' && <Star className="h-6 w-6 text-primary" />}
+                    {stats.planType === 'Premium' && <Crown className="h-6 w-6 text-primary" />}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span>Contract Audits</span>
-                    <span>{stats.totalAudits} / {FREE_LIMITS.audits}</span>
+                {/* Plan Features */}
+                <div className="bg-secondary/30 p-4 rounded-lg">
+                  <h3 className="font-medium mb-2">Your Plan Features</h3>
+                  <div className="space-y-2">
+                    {stats.planType === 'Free' && (
+                      <>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>5 contract audits per month</span>
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>3 token scans per month</span>
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>100 chat messages</span>
+                        </div>
+                      </>
+                    )}
+                    {stats.planType === 'Pro' && (
+                      <>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>50 contract audits per month</span>
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>50 token scans per month</span>
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>Unlimited chat messages</span>
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>Priority support</span>
+                        </div>
+                      </>
+                    )}
+                    {stats.planType === 'Premium' && (
+                      <>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>Unlimited contract audits</span>
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>Unlimited token scans</span>
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>Unlimited chat messages</span>
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>Dedicated support</span>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <Progress value={(stats.totalAudits / FREE_LIMITS.audits) * 100} className="h-2" />
                 </div>
+
+                {/* Usage Stats */}
                 <div>
-                  <div className="flex justify-between mb-1">
-                    <span>Token Scans</span>
-                    <span>{stats.tokensScanned} / {FREE_LIMITS.tokens}</span>
+                  <h3 className="font-medium mb-3">Current Usage</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span>Contract Audits</span>
+                        {stats.planType === 'Premium' ? (
+                          <span>{stats.totalAudits} / <Infinity className="h-4 w-4 inline" /></span>
+                        ) : (
+                          <span>
+                            {stats.totalAudits} / {stats.planType === 'Pro' ? PRO_LIMITS.audits : FREE_LIMITS.audits}
+                          </span>
+                        )}
+                      </div>
+                      {stats.planType !== 'Premium' && (
+                        <Progress 
+                          value={stats.planType === 'Pro' 
+                            ? (stats.totalAudits / PRO_LIMITS.audits) * 100 
+                            : (stats.totalAudits / FREE_LIMITS.audits) * 100
+                          } 
+                          className="h-2" 
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span>Token Scans</span>
+                        {stats.planType === 'Premium' ? (
+                          <span>{stats.tokensScanned} / <Infinity className="h-4 w-4 inline" /></span>
+                        ) : (
+                          <span>
+                            {stats.tokensScanned} / {stats.planType === 'Pro' ? PRO_LIMITS.tokens : FREE_LIMITS.tokens}
+                          </span>
+                        )}
+                      </div>
+                      {stats.planType !== 'Premium' && (
+                        <Progress 
+                          value={stats.planType === 'Pro' 
+                            ? (stats.tokensScanned / PRO_LIMITS.tokens) * 100 
+                            : (stats.tokensScanned / FREE_LIMITS.tokens) * 100
+                          } 
+                          className="h-2" 
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span>Chat Messages</span>
+                        {stats.planType === 'Free' ? (
+                          <span>{stats.chatMessages} / {FREE_LIMITS.chatMessages}</span>
+                        ) : (
+                          <span>{stats.chatMessages} / <Infinity className="h-4 w-4 inline" /></span>
+                        )}
+                      </div>
+                      {stats.planType === 'Free' && (
+                        <Progress 
+                          value={(stats.chatMessages / FREE_LIMITS.chatMessages) * 100} 
+                          className="h-2" 
+                        />
+                      )}
+                    </div>
                   </div>
-                  <Progress value={(stats.tokensScanned / FREE_LIMITS.tokens) * 100} className="h-2" />
                 </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span>Chat Messages</span>
-                    <span>{stats.chatMessages} / {FREE_LIMITS.chatMessages}</span>
-                  </div>
-                  <Progress value={(stats.chatMessages / FREE_LIMITS.chatMessages) * 100} className="h-2" />
-                </div>
-                <Button
-                  className="w-full mt-4"
-                  onClick={() => window.location.assign('/pricing')}
-                >
-                  Upgrade Plan
-                </Button>
+
+                {stats.planType !== 'Premium' && (
+                  <Button
+                    className="w-full mt-4"
+                    onClick={() => window.location.assign('/pricing')}
+                  >
+                    {stats.planType === 'Free' ? 'Upgrade Plan' : 'Upgrade to Premium'}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

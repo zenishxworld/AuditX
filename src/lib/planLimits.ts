@@ -6,7 +6,46 @@ export const FREE_LIMITS = {
   chatMessages: 100,
 };
 
-export async function getFreePlanUsage(userId: string) {
+export const PRO_LIMITS = {
+  audits: 50,
+  tokens: 50,
+  chatMessages: Infinity,
+};
+
+export const PREMIUM_LIMITS = {
+  audits: Infinity,
+  tokens: Infinity,
+  chatMessages: Infinity,
+};
+
+export type PlanType = 'Free' | 'Pro' | 'Premium';
+
+export const getPlanLimits = (planType: PlanType) => {
+  switch (planType) {
+    case 'Pro':
+      return PRO_LIMITS;
+    case 'Premium':
+      return PREMIUM_LIMITS;
+    default:
+      return FREE_LIMITS;
+  }
+};
+
+export async function getUserPlan(userId: string): Promise<PlanType> {
+  // Use localStorage as a temporary solution until the user_subscriptions table is created
+  const storedPlanType = localStorage.getItem('userPlanType');
+  
+  console.log('Retrieved plan type from localStorage:', storedPlanType);
+  
+  // Validate that the stored plan type is a valid PlanType
+  if (storedPlanType === 'Pro' || storedPlanType === 'Premium') {
+    return storedPlanType;
+  }
+  
+  return 'Free';
+}
+
+export async function getUserUsage(userId: string) {
   // Count audits
   const { count: auditsCount } = await supabase
     .from('audit_reports')
@@ -34,10 +73,21 @@ export async function getFreePlanUsage(userId: string) {
   };
 }
 
-export function isOverFreeLimit(usage: { audits: number; tokens: number; chatMessages: number }) {
+export function isOverLimit(usage: { audits: number; tokens: number; chatMessages: number }, planType: PlanType) {
+  const limits = getPlanLimits(planType);
   return (
-    usage.audits >= FREE_LIMITS.audits ||
-    usage.tokens >= FREE_LIMITS.tokens ||
-    usage.chatMessages >= FREE_LIMITS.chatMessages
+    (limits.audits !== Infinity && usage.audits >= limits.audits) ||
+    (limits.tokens !== Infinity && usage.tokens >= limits.tokens) ||
+    (limits.chatMessages !== Infinity && usage.chatMessages >= limits.chatMessages)
   );
-} 
+}
+
+// For backward compatibility
+export function isOverFreeLimit(usage: { audits: number; tokens: number; chatMessages: number }) {
+  return isOverLimit(usage, 'Free');
+}
+
+// For backward compatibility
+export async function getFreePlanUsage(userId: string) {
+  return getUserUsage(userId);
+}

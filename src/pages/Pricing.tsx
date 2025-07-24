@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Check,
   X,
@@ -22,6 +24,7 @@ const Pricing = () => {
   const { toast } = useToast();
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const plans = [
     {
@@ -84,18 +87,44 @@ const Pricing = () => {
   ];
 
   const handlePayment = async (planName: string) => {
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please login to upgrade your plan.",
+        variant: "destructive",
+      });
+      navigate('/auth');
+      return;
+    }
+
     setSelectedPlan(planName);
     setIsProcessing(true);
 
-    // Simulate payment processing
-    setTimeout(() => {
+    try {
+      // Since the user_subscriptions table doesn't exist yet in the database,
+      // we'll use localStorage as a temporary solution
+      localStorage.setItem('userPlanType', planName);
+      
+      // Simulate payment processing
+      setTimeout(() => {
+        toast({
+          title: "Payment Successful!",
+          description: `You have successfully subscribed to the ${planName} plan.`,
+        });
+        setIsProcessing(false);
+        setSelectedPlan('');
+        navigate('/dashboard');
+      }, 2000);
+    } catch (error) {
+      console.error('Error updating subscription:', JSON.stringify(error));
       toast({
-        title: "Payment Successful!",
-        description: `You have successfully subscribed to the ${planName} plan.`,
+        title: "Error",
+        description: `Failed to update subscription: ${error.message || JSON.stringify(error)}`,
+        variant: "destructive",
       });
       setIsProcessing(false);
       setSelectedPlan('');
-    }, 2000);
+    }
   };
 
   return (

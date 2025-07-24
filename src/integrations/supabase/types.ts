@@ -136,6 +136,30 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      },
+      user_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          plan_type: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          plan_type: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          plan_type?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
