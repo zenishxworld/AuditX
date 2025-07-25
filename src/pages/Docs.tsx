@@ -205,7 +205,7 @@ const Docs = () => {
               </CardContent>
             </Card>
 
-            {/* Search */}
+            {/* Search 
             <Card className="bg-gradient-card border-border">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -216,7 +216,7 @@ const Docs = () => {
               <CardContent>
                 <Input placeholder="Search documentation..." className="w-full" />
               </CardContent>
-            </Card>
+            </Card>*/}
 
             {/* Quick Links */}
             <Card className="bg-gradient-card border-border">

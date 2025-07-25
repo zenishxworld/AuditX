@@ -20,7 +20,7 @@ import {
   Activity,
   Save
 } from 'lucide-react';
-import { getFreePlanUsage, FREE_LIMITS } from '@/lib/planLimits';
+import { getUserPlan, getUserUsage, isOverLimit, PlanType } from '@/lib/planLimits';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface TokenData {
@@ -100,6 +100,7 @@ const Scanner = () => {
   const [scanResult, setScanResult] = useState<AnalysisResult | null>(null);
   const { toast } = useToast();
   const [limitModalOpen, setLimitModalOpen] = useState(false);
+  const [planType, setPlanType] = useState<PlanType>('Free');
 
   const fetchTokenData = async (address: string): Promise<TokenData | null> => {
     try {
@@ -337,8 +338,10 @@ const Scanner = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const usage = await getFreePlanUsage(user.id);
-        if (usage.tokens >= FREE_LIMITS.tokens) {
+        const userPlan = await getUserPlan(user.id);
+        setPlanType(userPlan);
+        const usage = await getUserUsage(user.id);
+        if (isOverLimit(usage, userPlan)) {
           setLimitModalOpen(true);
           setIsScanning(false);
           return;

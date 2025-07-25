@@ -14,7 +14,7 @@ import {
   Shield, 
   Download
 } from 'lucide-react';
-import { getFreePlanUsage, FREE_LIMITS } from '@/lib/planLimits';
+import { getUserPlan, getUserUsage, getPlanLimits, isOverLimit, PlanType } from '@/lib/planLimits';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -26,20 +26,25 @@ const Audit = () => {
   const { toast } = useToast();
   const [limitModalOpen, setLimitModalOpen] = useState(false);
   const [auditCount, setAuditCount] = useState(0);
+  const [planType, setPlanType] = useState<PlanType>('Free');
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchAuditCount = async () => {
+    const fetchAuditInfo = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
+        // Fetch audit count
         const { count } = await supabase
           .from('audit_reports')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', session.user.id);
         setAuditCount(count || 0);
+        // Fetch plan type
+        const userPlan = await getUserPlan(session.user.id);
+        setPlanType(userPlan);
       }
     };
-    fetchAuditCount();
+    fetchAuditInfo();
   }, []);
 
   const extractContractName = (code: string): string | null => {
@@ -72,8 +77,11 @@ const Audit = () => {
       const score = typeof auditReport.overallScore === 'number' ? auditReport.overallScore : null;
 
       if (session?.user) {
-        const usage = await getFreePlanUsage(session.user.id);
-        if (usage.audits >= FREE_LIMITS.audits) {
+        // Get user's plan type and usage
+        const userPlan = await getUserPlan(session.user.id);
+        setPlanType(userPlan);
+        const usage = await getUserUsage(session.user.id);
+        if (isOverLimit(usage, userPlan)) {
           setLimitModalOpen(true);
           setIsAuditing(false);
           return;
@@ -362,7 +370,7 @@ contract MyContract {
               Upgrade your plan to continue using this feature.
             </DialogDescription>
           </DialogHeader>
-          <Button onClick={() => {/* navigate to pricing */}}>Upgrade Now</Button>
+          <Button onClick={() => navigate('/pricing')}>Upgrade Now</Button>
         </DialogContent>
       </Dialog>
     </div>
