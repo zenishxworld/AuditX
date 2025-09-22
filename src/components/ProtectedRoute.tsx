@@ -30,7 +30,7 @@ const ProtectedRoute = ({ children, fallback }: ProtectedRouteProps) => {
             Please sign in to access this feature.
           </p>
           <button
-            onClick={openAuthModal}
+            onClick={() => openAuthModal(true)}
             className="text-primary hover:underline font-medium"
           >
             Sign In
