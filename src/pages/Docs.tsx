@@ -59,8 +59,7 @@ const Docs = () => {
       ]
     },
     {
-      id: 'chatbot-guide',
-      title: 'Smart Contract Chatbot',
+      
       icon: MessageCircle,
       content: [
         {

@@ -18,7 +18,7 @@ const Hero = () => {
     },
     {
       icon: MessageCircle,
-      title: "Smart Contract Chatbot",
+      title: "Smart Contract Security",
       description: "Get instant answers to your blockchain development questions"
     },
     {

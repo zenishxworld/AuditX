@@ -13,7 +13,7 @@ const Navbar = () => {
     { name: 'Home', href: '/', icon: Shield },
     { name: 'Audit', href: '/audit', icon: Shield, protected: true },
     { name: 'Scanner', href: '/scanner', icon: BarChart3, protected: true },
-    { name: 'Chatbot', href: '/chatbot', icon: MessageCircle, protected: true },
+    
     { name: 'Dashboard', href: '/dashboard', icon: User, protected: true },
     { name: 'Pricing', href: '/pricing', icon: CreditCard },
     { name: 'Docs', href: '/docs', icon: BookOpen },

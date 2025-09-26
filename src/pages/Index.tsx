@@ -36,7 +36,7 @@ const Index = () => {
     {
       icon: MessageCircle,
       title: "Expert AI Assistant",
-      description: "24/7 smart contract chatbot with deep blockchain knowledge",
+      description: "Advanced blockchain security tools for your projects",
       color: "text-purple-accent"
     },
     {
