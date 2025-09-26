@@ -9,7 +9,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import Audit from "./pages/Audit";
 import Scanner from "./pages/Scanner";
-
+import Chatbot from "./pages/Chatbot";
 import Pricing from "./pages/Pricing";
 import Dashboard from "./pages/Dashboard";
 import Docs from "./pages/Docs";
@@ -37,7 +37,11 @@ const App = () => (
                   <Scanner />
                 </ProtectedRoute>
               } />
-              
+              <Route path="/chatbot" element={
+                <ProtectedRoute>
+                  <Chatbot />
+                </ProtectedRoute>
+              } />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>

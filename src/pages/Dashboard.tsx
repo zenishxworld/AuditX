@@ -458,14 +458,14 @@ const Dashboard = () => {
                   <span>Chat History</span>
                 </CardTitle>
                 <CardDescription>
-                  Your security analysis history
+                  Your chatbot conversation history
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {chats.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      No security analysis history found. Run your first security scan!
+                      No chat history found. Start a conversation with our AI chatbot!
                     </div>
                   ) : (
                     chats.map((chat) => (
