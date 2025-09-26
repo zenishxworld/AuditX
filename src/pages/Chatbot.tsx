@@ -1,42 +1,48 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  MessageCircle, 
   Send, 
   Bot, 
   User,
   Copy,
-  Trash2,
-  Sparkles
+  RotateCcw,
+  Sparkles,
+  MessageSquare
 } from 'lucide-react';
-import { getFreePlanUsage, FREE_LIMITS } from '@/lib/planLimits';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 
-interface Message {
+interface ChatMessage {
   id: string;
-  type: 'user' | 'bot';
+  role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
 }
 
 const Chatbot = () => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
-      id: '1',
-      type: 'bot',
-      content: "Hello! I'm your Smart Contract Assistant. I can help you with Solidity development, security best practices, gas optimization, and more. What would you like to know?",
+      id: 'welcome',
+      role: 'assistant',
+      content: "👋 Hello! I'm your Smart Contract AI Assistant. I can help you with Solidity development, security analysis, gas optimization, and blockchain best practices. What would you like to explore today?",
       timestamp: new Date()
     }
   ]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const [limitModalOpen, setLimitModalOpen] = useState(false);
+
+  const suggestedPrompts = [
+    "Explain reentrancy attacks and prevention",
+    "How to optimize gas usage in smart contracts?",
+    "Best practices for ERC-20 token development",
+    "What are common smart contract vulnerabilities?",
+    "How to implement access control patterns?"
+  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -46,288 +52,260 @@ const Chatbot = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+  const handleSendMessage = async (messageText?: string) => {
+    const textToSend = messageText || input.trim();
+    if (!textToSend || isLoading) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const usage = await getFreePlanUsage(user.id);
-      if (usage.chatMessages >= FREE_LIMITS.chatMessages) {
-        setLimitModalOpen(true);
-        setIsTyping(false);
-        return;
-      }
-    }
-
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      type: 'user',
-      content: inputMessage,
+      role: 'user',
+      content: textToSend,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const currentMessage = inputMessage;
-    setInputMessage('');
-    setIsTyping(true);
+    setInput('');
+    setIsLoading(true);
 
     try {
-      // Call our Supabase edge function
       const response = await fetch('https://dzjotrzhwubdatmpjdmc.supabase.co/functions/v1/chatbot-ai', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: currentMessage }),
+        body: JSON.stringify({ message: textToSend }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`API Error: ${response.status}`);
       }
 
       const data = await response.json();
       
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      const botResponse: Message = {
+      const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        type: 'bot',
-        content: data.response || 'Sorry, I could not generate a response.',
+        role: 'assistant',
+        content: data.response || 'I apologize, but I encountered an issue generating a response. Please try again.',
         timestamp: new Date()
       };
 
-      setMessages(prev => [...prev, botResponse]);
+      setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error calling AI:', error);
+      console.error('Chat error:', error);
       
-      // Show error message instead of fallback
-      const errorMessage: Message = {
+      const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        type: 'bot',
-        content: `❌ Error: Unable to connect to AI service. ${error instanceof Error ? error.message : 'Please try again later.'}`,
+        role: 'assistant',
+        content: '⚠️ Sorry, I encountered a technical issue. Please try again in a moment.',
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, errorMessage]);
+      
+      toast({
+        title: "Connection Error",
+        description: "Failed to get AI response. Please try again.",
+        variant: "destructive",
+      });
     } finally {
-      setIsTyping(false);
+      setIsLoading(false);
     }
   };
 
-  const generateBotResponse = (userInput: string): string => {
-    const input = userInput.toLowerCase();
-    
-    if (input.includes('reentrancy')) {
-      return "Reentrancy is a vulnerability where a function can be called again before its previous execution is complete. To prevent it:\n\n1. Use the checks-effects-interactions pattern\n2. Implement reentrancy guards (like OpenZeppelin's ReentrancyGuard)\n3. Update state variables before external calls\n4. Use `call` instead of `transfer` for ETH transfers\n\nExample with ReentrancyGuard:\n```solidity\ncontract MyContract is ReentrancyGuard {\n    function withdraw() external nonReentrant {\n        // Safe withdrawal logic\n    }\n}\n```";
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: "Message copied to clipboard",
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: "Unable to copy to clipboard",
+        variant: "destructive",
+      });
     }
-    
-    if (input.includes('gas') && input.includes('optimization')) {
-      return "Here are key gas optimization techniques:\n\n1. **Use smaller data types** when possible (uint8 instead of uint256)\n2. **Pack struct variables** to fit in 32-byte slots\n3. **Use mappings** instead of arrays for large datasets\n4. **Avoid loops** or limit their size\n5. **Use events** for data that doesn't need to be stored\n6. **Cache storage variables** in memory\n7. **Use ++i instead of i++** in loops\n\nExample of struct packing:\n```solidity\nstruct OptimizedStruct {\n    uint128 amount;  // 16 bytes\n    uint64 timestamp; // 8 bytes\n    uint32 id;       // 4 bytes\n    bool active;     // 1 byte\n    // Total: 29 bytes (fits in one 32-byte slot)\n}\n```";
-    }
-    
-    if (input.includes('security') || input.includes('audit')) {
-      return "Smart contract security best practices:\n\n1. **Input validation** - Always validate user inputs\n2. **Access controls** - Use proper permission checks\n3. **Integer overflow/underflow** - Use SafeMath or Solidity ^0.8.0\n4. **External calls** - Be cautious with external contract calls\n5. **Randomness** - Don't rely on block variables for randomness\n6. **Front-running** - Consider MEV protection\n7. **Testing** - Comprehensive unit and integration tests\n8. **Formal verification** - Use tools like Certora or Mythril\n\nCommon vulnerabilities to watch for:\n• Reentrancy attacks\n• Integer overflow/underflow\n• Timestamp dependence\n• Authorization flaws\n• Logic errors";
-    }
-    
-    if (input.includes('erc20') || input.includes('token')) {
-      return "ERC20 token implementation tips:\n\n1. **Use OpenZeppelin** - Don't reinvent the wheel\n2. **Implement all required functions** - transfer, approve, balanceOf, etc.\n3. **Handle edge cases** - Zero transfers, self-transfers\n4. **Emit events** - Transfer and Approval events\n5. **Consider extensions** - Mintable, Burnable, Pausable\n\nBasic ERC20 structure:\n```solidity\nimport \"@openzeppelin/contracts/token/ERC20/ERC20.sol\";\n\ncontract MyToken is ERC20 {\n    constructor() ERC20(\"MyToken\", \"MTK\") {\n        _mint(msg.sender, 1000000 * 10**decimals());\n    }\n}\n```";
-    }
-    
-    return "I can help you with various smart contract topics including:\n\n• Solidity syntax and best practices\n• Security vulnerabilities and prevention\n• Gas optimization techniques\n• ERC standards (ERC20, ERC721, etc.)\n• DeFi protocols and patterns\n• Testing and debugging\n• Deployment strategies\n\nFeel free to ask me any specific questions about smart contract development!";
   };
 
-  const copyMessage = (content: string) => {
-    navigator.clipboard.writeText(content);
-    toast({
-      title: "Copied!",
-      description: "Message copied to clipboard",
-    });
+  const resetChat = () => {
+    setMessages([
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: "👋 Hello! I'm your Smart Contract AI Assistant. I can help you with Solidity development, security analysis, gas optimization, and blockchain best practices. What would you like to explore today?",
+        timestamp: new Date()
+      }
+    ]);
   };
 
-  const clearChat = () => {
-    setMessages([{
-      id: '1',
-      type: 'bot',
-      content: "Hello! I'm your Smart Contract Assistant. I can help you with Solidity development, security best practices, gas optimization, and more. What would you like to know?",
-      timestamp: new Date()
-    }]);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
-
-  const suggestedQuestions = [
-    "What is reentrancy and how to prevent it?",
-    "How to optimize gas usage in smart contracts?",
-    "What are common security vulnerabilities?",
-    "How to implement ERC20 tokens?",
-    "What are smart contract design patterns?"
-  ];
 
   return (
-    <div className="min-h-screen bg-gradient-space py-4 sm:py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4">
-            <span className="bg-gradient-primary bg-clip-text text-transparent">
-              Smart Contract Chatbot
-            </span>
-          </h1>
-          <p className="text-lg sm:text-xl text-muted-foreground">
-            Get instant answers to your blockchain development questions
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="p-2 rounded-full bg-primary/10">
+              <MessageSquare className="h-8 w-8 text-primary" />
+            </div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              Smart Contract Assistant
+            </h1>
+          </div>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            Your AI-powered companion for blockchain development, security analysis, and Solidity best practices
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-12rem)]">
-          {/* Suggested Questions */}
-          <div className="lg:col-span-1 order-2 lg:order-1">
-            <Card className="bg-gradient-card border-border h-full flex flex-col">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center space-x-2 text-base">
-                  <Sparkles className="h-4 w-4 text-purple-primary" />
-                  <span>Suggested Questions</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-hidden p-3">
-                <div className="space-y-2 overflow-y-auto h-full pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                  {suggestedQuestions.map((question, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      size="sm"
-                      className="w-full text-left text-xs h-auto p-3 whitespace-normal leading-relaxed hover:bg-secondary/80 transition-colors"
-                      onClick={() => setInputMessage(question)}
-                    >
-                      {question}
-                    </Button>
-                  ))}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
+          {/* Suggested Prompts Sidebar */}
+          <div className="lg:col-span-1 space-y-4">
+            <Card className="p-4 h-full">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <h3 className="font-semibold">Quick Start</h3>
+              </div>
+              <div className="space-y-3">
+                {suggestedPrompts.map((prompt, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className="w-full text-left h-auto p-3 text-sm whitespace-normal justify-start hover:bg-primary/5 hover:border-primary/50"
+                    onClick={() => handleSendMessage(prompt)}
+                    disabled={isLoading}
+                  >
+                    {prompt}
+                  </Button>
+                ))}
+                <div className="pt-4 border-t">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-muted-foreground hover:text-foreground"
+                    onClick={resetChat}
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset Conversation
+                  </Button>
                 </div>
-              </CardContent>
+              </div>
             </Card>
           </div>
 
-          {/* Chat Interface */}
-          <div className="lg:col-span-3 order-1 lg:order-2">
-            <Card className="bg-gradient-card border-border h-full flex flex-col">
-              <CardHeader className="flex-row items-center justify-between py-3 px-4">
-                <CardTitle className="flex items-center space-x-2 text-base">
-                  <MessageCircle className="h-4 w-4 text-purple-primary" />
-                  <span>Chat Assistant</span>
-                </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearChat}
-                  className="hover:bg-destructive/20 h-8"
-                >
-                  <Trash2 className="h-3 w-3 mr-2" />
-                  Clear
-                </Button>
-              </CardHeader>
-              
-              <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-                {/* Messages Container */}
-                <div className="flex-1 overflow-y-auto px-4 py-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                  <div className="space-y-4 min-h-0">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex w-full ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`relative max-w-[85%] min-w-0 p-3 rounded-lg break-words ${
-                            message.type === 'user'
-                              ? 'bg-primary text-primary-foreground ml-8'
-                              : 'bg-secondary/50 text-foreground mr-8'
-                          }`}
-                        >
-                          <div className="flex items-start space-x-2 min-w-0">
-                            <div className="flex-shrink-0 mt-0.5">
-                              {message.type === 'bot' ? (
-                                <Bot className="h-4 w-4 text-purple-primary" />
-                              ) : (
-                                <User className="h-4 w-4" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="prose prose-sm max-w-none break-words">
-                                <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed m-0 p-0 bg-transparent border-0 overflow-wrap-anywhere">
-                                  {message.content}
-                                </pre>
-                              </div>
-                              <div className="flex items-center justify-between mt-2 pt-1 border-t border-current/10">
-                                <span className="text-xs opacity-70 flex-shrink-0">
-                                  {message.timestamp.toLocaleTimeString()}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => copyMessage(message.content)}
-                                  className="h-6 w-6 p-0 hover:bg-current/10 ml-2 flex-shrink-0"
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {isTyping && (
-                      <div className="flex justify-start w-full">
-                        <div className="bg-secondary/50 p-3 rounded-lg mr-8">
-                          <div className="flex items-center space-x-2">
-                            <Bot className="h-4 w-4 text-purple-primary flex-shrink-0" />
-                            <div className="flex space-x-1">
-                              <div className="w-2 h-2 bg-purple-primary rounded-full animate-bounce"></div>
-                              <div className="w-2 h-2 bg-purple-primary rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                              <div className="w-2 h-2 bg-purple-primary rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div ref={messagesEndRef} />
-                  </div>
-                </div>
-
-                {/* Input Section */}
-                <div className="flex-shrink-0 p-4 border-t border-border bg-background/50">
-                  <div className="flex space-x-2 max-w-full">
-                    <Input
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      placeholder="Ask me anything about smart contracts..."
-                      onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                      className="flex-1 min-w-0"
-                      disabled={isTyping}
-                    />
-                    <Button
-                      onClick={handleSendMessage}
-                      disabled={!inputMessage.trim() || isTyping}
-                      className="bg-gradient-primary hover:opacity-90 flex-shrink-0"
+          {/* Main Chat Interface */}
+          <div className="lg:col-span-3">
+            <Card className="h-full flex flex-col">
+              {/* Chat Messages */}
+              <ScrollArea className="flex-1 p-6">
+                <div className="space-y-6">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                     >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      {/* Avatar */}
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        message.role === 'user' 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-secondary text-secondary-foreground'
+                      }`}>
+                        {message.role === 'user' ? (
+                          <User className="h-4 w-4" />
+                        ) : (
+                          <Bot className="h-4 w-4" />
+                        )}
+                      </div>
+
+                      {/* Message Content */}
+                      <div className={`flex-1 max-w-[80%] ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+                        <div className={`inline-block p-4 rounded-2xl ${
+                          message.role === 'user'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary/50 text-foreground border'
+                        }`}>
+                          <div className="prose prose-sm max-w-none dark:prose-invert">
+                            <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed m-0 bg-transparent">
+                              {message.content}
+                            </pre>
+                          </div>
+                        </div>
+                        
+                        {/* Message Actions */}
+                        <div className={`flex items-center gap-2 mt-2 text-xs text-muted-foreground ${
+                          message.role === 'user' ? 'justify-end' : 'justify-start'
+                        }`}>
+                          <span>{message.timestamp.toLocaleTimeString()}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 hover:bg-secondary"
+                            onClick={() => copyToClipboard(message.content)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Loading Indicator */}
+                  {isLoading && (
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center">
+                        <Bot className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="inline-block p-4 rounded-2xl bg-secondary/50 border">
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-1">
+                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                            </div>
+                            <span className="text-sm text-muted-foreground">Thinking...</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div ref={messagesEndRef} />
                 </div>
-              </CardContent>
+              </ScrollArea>
+
+              {/* Input Area */}
+              <div className="border-t p-4">
+                <div className="flex gap-3">
+                  <Input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask me anything about smart contracts..."
+                    className="flex-1"
+                    disabled={isLoading}
+                  />
+                  <Button
+                    onClick={() => handleSendMessage()}
+                    disabled={!input.trim() || isLoading}
+                    className="px-6"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Press Enter to send • Shift+Enter for new line
+                </p>
+              </div>
             </Card>
           </div>
         </div>
       </div>
-      <Dialog open={limitModalOpen} onOpenChange={setLimitModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>⚠️ You’ve reached the Free Plan limit</DialogTitle>
-            <DialogDescription>
-              Upgrade your plan to continue using this feature.
-            </DialogDescription>
-          </DialogHeader>
-          <Button onClick={() => {/* navigate to pricing */}}>Upgrade Now</Button>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
