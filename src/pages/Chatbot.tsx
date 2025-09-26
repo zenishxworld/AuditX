@@ -164,141 +164,149 @@ const Chatbot = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-space py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4">
+    <div className="min-h-screen bg-gradient-space py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-4">
             <span className="bg-gradient-primary bg-clip-text text-transparent">
               Smart Contract Chatbot
             </span>
           </h1>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-lg sm:text-xl text-muted-foreground">
             Get instant answers to your blockchain development questions
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-12rem)]">
           {/* Suggested Questions */}
-          <div className="lg:col-span-1">
-            <Card className="bg-gradient-card border-border h-full max-h-[600px] flex flex-col">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Sparkles className="h-5 w-5 text-purple-primary" />
+          <div className="lg:col-span-1 order-2 lg:order-1">
+            <Card className="bg-gradient-card border-border h-full flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center space-x-2 text-base">
+                  <Sparkles className="h-4 w-4 text-purple-primary" />
                   <span>Suggested Questions</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col items-center justify-center space-y-2 overflow-y-auto max-h-[420px] custom-scrollbar pr-1">
-                {suggestedQuestions.map((question, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    size="sm"
-                    className="w-full max-w-full text-left text-xs h-auto p-2 justify-center overflow-hidden truncate"
-                    onClick={() => setInputMessage(question)}
-                    title={question}
-                  >
-                    <span className="block truncate overflow-hidden text-ellipsis w-full">{question}</span>
-                  </Button>
-                ))}
+              <CardContent className="flex-1 overflow-hidden p-3">
+                <div className="space-y-2 overflow-y-auto h-full pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                  {suggestedQuestions.map((question, index) => (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-left text-xs h-auto p-3 whitespace-normal leading-relaxed hover:bg-secondary/80 transition-colors"
+                      onClick={() => setInputMessage(question)}
+                    >
+                      {question}
+                    </Button>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
 
           {/* Chat Interface */}
-          <div className="lg:col-span-3">
-            <Card className="bg-gradient-card border-border h-[600px] flex flex-col">
-              <CardHeader className="flex-row items-center justify-between">
-                <CardTitle className="flex items-center space-x-2">
-                  <MessageCircle className="h-5 w-5 text-purple-primary" />
+          <div className="lg:col-span-3 order-1 lg:order-2">
+            <Card className="bg-gradient-card border-border h-full flex flex-col">
+              <CardHeader className="flex-row items-center justify-between py-3 px-4">
+                <CardTitle className="flex items-center space-x-2 text-base">
+                  <MessageCircle className="h-4 w-4 text-purple-primary" />
                   <span>Chat Assistant</span>
                 </CardTitle>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={clearChat}
-                  className="hover:bg-destructive/20"
+                  className="hover:bg-destructive/20 h-8"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-3 w-3 mr-2" />
                   Clear
                 </Button>
               </CardHeader>
               
-              <CardContent className="flex-1 flex flex-col p-0">
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
+              <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+                {/* Messages Container */}
+                <div className="flex-1 overflow-y-auto px-4 py-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                  <div className="space-y-4 min-h-0">
+                    {messages.map((message) => (
                       <div
-                        className={`max-w-[80%] p-3 rounded-lg ${
-                          message.type === 'user'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary/50 text-foreground'
-                        }`}
+                        key={message.id}
+                        className={`flex w-full ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
-                        <div className="flex items-start space-x-2">
-                          {message.type === 'bot' ? (
-                            <Bot className="h-4 w-4 mt-0.5 text-purple-primary" />
-                          ) : (
-                            <User className="h-4 w-4 mt-0.5" />
-                          )}
-                          <div className="flex-1">
-                            <pre className="whitespace-pre-wrap text-sm font-sans">
-                              {message.content}
-                            </pre>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="text-xs opacity-70">
-                                {message.timestamp.toLocaleTimeString()}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => copyMessage(message.content)}
-                                className="h-6 w-6 p-0 hover:bg-transparent"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
+                        <div
+                          className={`relative max-w-[85%] min-w-0 p-3 rounded-lg break-words ${
+                            message.type === 'user'
+                              ? 'bg-primary text-primary-foreground ml-8'
+                              : 'bg-secondary/50 text-foreground mr-8'
+                          }`}
+                        >
+                          <div className="flex items-start space-x-2 min-w-0">
+                            <div className="flex-shrink-0 mt-0.5">
+                              {message.type === 'bot' ? (
+                                <Bot className="h-4 w-4 text-purple-primary" />
+                              ) : (
+                                <User className="h-4 w-4" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="prose prose-sm max-w-none break-words">
+                                <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed m-0 p-0 bg-transparent border-0 overflow-wrap-anywhere">
+                                  {message.content}
+                                </pre>
+                              </div>
+                              <div className="flex items-center justify-between mt-2 pt-1 border-t border-current/10">
+                                <span className="text-xs opacity-70 flex-shrink-0">
+                                  {message.timestamp.toLocaleTimeString()}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyMessage(message.content)}
+                                  className="h-6 w-6 p-0 hover:bg-current/10 ml-2 flex-shrink-0"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                  
-                  {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="bg-secondary/50 p-3 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <Bot className="h-4 w-4 text-purple-primary" />
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-purple-primary rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-purple-primary rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                            <div className="w-2 h-2 bg-purple-primary rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    ))}
+                    
+                    {isTyping && (
+                      <div className="flex justify-start w-full">
+                        <div className="bg-secondary/50 p-3 rounded-lg mr-8">
+                          <div className="flex items-center space-x-2">
+                            <Bot className="h-4 w-4 text-purple-primary flex-shrink-0" />
+                            <div className="flex space-x-1">
+                              <div className="w-2 h-2 bg-purple-primary rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-purple-primary rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                              <div className="w-2 h-2 bg-purple-primary rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  
-                  <div ref={messagesEndRef} />
+                    )}
+                    
+                    <div ref={messagesEndRef} />
+                  </div>
                 </div>
 
-                {/* Input */}
-                <div className="p-4 border-t border-border">
-                  <div className="flex space-x-2">
+                {/* Input Section */}
+                <div className="flex-shrink-0 p-4 border-t border-border bg-background/50">
+                  <div className="flex space-x-2 max-w-full">
                     <Input
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       placeholder="Ask me anything about smart contracts..."
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                      className="flex-1"
+                      onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                      className="flex-1 min-w-0"
+                      disabled={isTyping}
                     />
                     <Button
                       onClick={handleSendMessage}
                       disabled={!inputMessage.trim() || isTyping}
-                      className="bg-gradient-primary hover:opacity-90"
+                      className="bg-gradient-primary hover:opacity-90 flex-shrink-0"
                     >
                       <Send className="h-4 w-4" />
                     </Button>
