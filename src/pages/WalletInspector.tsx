@@ -135,19 +135,29 @@ const WalletInspector = () => {
 
       setWalletData(processedData);
 
-      // Save to database if user is logged in
+      // Save to database if user is logged in (required for security)
       if (user) {
         try {
           await supabase.from('token_scans').insert([{
-            user_id: user.id,
+            user_id: user.id, // Required - no more NULL values allowed
             address: address,
             network: 'ethereum',
             chain: 'ETH',
             risk: risk.level,
             result: processedData as any
           }]);
+          
+          toast({
+            title: 'Wallet Scan Saved',
+            description: 'Wallet inspection saved to your dashboard',
+          });
         } catch (dbError) {
           console.error('Error saving to database:', dbError);
+          toast({
+            title: 'Save Failed',
+            description: 'Could not save scan to database',
+            variant: 'destructive',
+          });
         }
       }
 
