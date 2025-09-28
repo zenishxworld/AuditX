@@ -138,13 +138,14 @@ const WalletInspector = () => {
       // Save to database if user is logged in
       if (user) {
         try {
-          await supabase.from('token_scans').insert({
+          await supabase.from('token_scans').insert([{
+            user_id: user.id,
             address: address,
             network: 'ethereum',
             chain: 'ETH',
             risk: risk.level,
-            result: processedData
-          });
+            result: processedData as any
+          }]);
         } catch (dbError) {
           console.error('Error saving to database:', dbError);
         }
