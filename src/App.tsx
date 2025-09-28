@@ -9,7 +9,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import Audit from "./pages/Audit";
 import Scanner from "./pages/Scanner";
-import Chatbot from "./pages/Chatbot";
 import WalletInspector from "./pages/WalletInspector";
 import Pricing from "./pages/Pricing";
 import Dashboard from "./pages/Dashboard";
@@ -36,11 +35,6 @@ const App = () => (
               <Route path="/scanner" element={
                 <ProtectedRoute>
                   <Scanner />
-                </ProtectedRoute>
-              } />
-              <Route path="/chatbot" element={
-                <ProtectedRoute>
-                  <Chatbot />
                 </ProtectedRoute>
               } />
               <Route path="/wallet-inspector" element={

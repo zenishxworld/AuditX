@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
     FileText, 
     Shield, 
     BarChart3, 
-    MessageCircle,
     Wallet,
     Download,
     Trash2,
@@ -47,19 +46,13 @@ interface TokenScan {
   created_at: string;
 }
 
-interface Chat {
-  id: string;
-  topic: string;
-  message_count: number;
-  status: string;
-  created_at: string;
-}
+// Chat feature removed
 
 interface DashboardStats {
   totalAudits: number;
   tokensScanned: number;
-  chatMessages: number;
   avgScore: number;
+  walletInspector: number;
   planType: PlanType;
 }
 
@@ -67,12 +60,12 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('audits');
   const [audits, setAudits] = useState<AuditReport[]>([]);
   const [tokens, setTokens] = useState<TokenScan[]>([]);
-  const [chats, setChats] = useState<Chat[]>([]);
+  
   const [stats, setStats] = useState<DashboardStats>({
     totalAudits: 0,
     tokensScanned: 0,
-    chatMessages: 0,
     avgScore: 0,
+    walletInspector: 0,
     planType: 'Free'
   });
   const [loading, setLoading] = useState(true);
@@ -97,7 +90,7 @@ const Dashboard = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const [auditsRes, tokensRes, chatsRes, planType] = await Promise.all([
+      const [auditsRes, tokensRes, planType] = await Promise.all([
         supabase
           .from('audit_reports')
           .select('*')
@@ -108,35 +101,39 @@ const Dashboard = () => {
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
-        supabase
-          .from('chats')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
         getUserPlan(user.id),
       ]);
 
       if (auditsRes.error) throw auditsRes.error;
       if (tokensRes.error) throw tokensRes.error;
-      if (chatsRes.error) throw chatsRes.error;
 
       const auditsData = auditsRes.data || [];
       const tokensData = tokensRes.data || [];
-      const chatsData = chatsRes.data || [];
-
-      const totalChatMessages = (chatsData || []).reduce((sum, chat) => sum + chat.message_count, 0);
+      // Attempt to fetch wallet inspector history if table exists
+      let walletInspectionsCount = 0;
+      try {
+        const walletRes = await supabase
+          .from('wallet_inspections')
+          .select('id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        if (!walletRes.error) {
+          walletInspectionsCount = (walletRes.data || []).length;
+        }
+      } catch (_) {
+        // Fallback silently if table is not available
+      }
       const avgScore = auditsData.length
         ? auditsData.reduce((sum, audit) => sum + (audit.score || 0), 0) / auditsData.length
         : 0;
 
       setAudits(auditsData);
       setTokens(tokensData);
-      setChats(chatsData);
       setStats({
         totalAudits: auditsData.length,
         tokensScanned: tokensData.length,
-        chatMessages: totalChatMessages,
         avgScore: Math.round(avgScore * 10) / 10,
+        walletInspector: walletInspectionsCount,
         planType,
       });
     } catch (error) {
@@ -151,7 +148,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleDelete = async (type: 'audit' | 'token' | 'chat', id: string) => {
+  const handleDelete = async (type: 'audit' | 'token', id: string) => {
     if (!user) return;
 
     try {
@@ -175,15 +172,6 @@ const Dashboard = () => {
         error = delError;
         deleted = !error && count && count > 0;
         if (deleted) setTokens((prev) => prev.filter((t) => t.id !== id));
-      } else if (type === 'chat') {
-        const { error: delError, count } = await supabase
-          .from('chats')
-          .delete({ count: 'exact' })
-          .eq('id', id)
-          .eq('user_id', user.id);
-        error = delError;
-        deleted = !error && count && count > 0;
-        if (deleted) setChats((prev) => prev.filter((c) => c.id !== id));
       }
 
       if (error) throw error;
@@ -313,13 +301,15 @@ const Dashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Wallet Inspector</p>
-                  <p className="text-2xl font-bold text-primary">{stats.chatMessages}</p>
+                  <p className="text-sm text-muted-foreground">Inspected Wallet</p>
+                  <p className="text-2xl font-bold text-primary">{stats.walletInspector}</p>
                 </div>
-                <MessageCircle className="h-8 w-8 text-primary" />
+                <BarChart3 className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
+          
+          
           
           <Card className="bg-gradient-card border-border">
             <CardContent className="p-6">
@@ -508,10 +498,7 @@ const Dashboard = () => {
                           <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
                           <span>3 token scans per month</span>
                         </div>
-                        <div className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                          <span>100 chat messages</span>
-                        </div>
+                        
                       </>
                     )}
                     {stats.planType === 'Pro' && (
@@ -524,10 +511,7 @@ const Dashboard = () => {
                           <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
                           <span>50 token scans per month</span>
                         </div>
-                        <div className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                          <span>Unlimited chat messages</span>
-                        </div>
+                        
                         <div className="flex items-center">
                           <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
                           <span>Priority support</span>
@@ -544,10 +528,7 @@ const Dashboard = () => {
                           <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
                           <span>Unlimited token scans</span>
                         </div>
-                        <div className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                          <span>Unlimited chat messages</span>
-                        </div>
+                        
                         <div className="flex items-center">
                           <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
                           <span>Dedicated support</span>
@@ -603,22 +584,7 @@ const Dashboard = () => {
                         />
                       )}
                     </div>
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <span>Chat Messages</span>
-                        {stats.planType === 'Free' ? (
-                          <span>{stats.chatMessages} / {FREE_LIMITS.chatMessages}</span>
-                        ) : (
-                          <span>{stats.chatMessages} / <Infinity className="h-4 w-4 inline" /></span>
-                        )}
-                      </div>
-                      {stats.planType === 'Free' && (
-                        <Progress 
-                          value={(stats.chatMessages / FREE_LIMITS.chatMessages) * 100} 
-                          className="h-2" 
-                        />
-                      )}
-                    </div>
+                    
                   </div>
                 </div>
 
@@ -642,7 +608,7 @@ const Dashboard = () => {
               <DialogTitle>
                 {selectedItem?.type === 'audit' && 'Audit Details'}
                 {selectedItem?.type === 'token' && 'Token Scan Details'}
-                {selectedItem?.type === 'chat' && 'Chat Details'}
+                
               </DialogTitle>
               <DialogDescription>
                 View detailed information about this item
@@ -702,25 +668,7 @@ const Dashboard = () => {
                     </div>
                   )}
                   
-                  {selectedItem.type === 'chat' && (
-                    <div className="space-y-3">
-                      <div>
-                        <strong>Topic:</strong> {selectedItem.topic}
-                      </div>
-                      <div>
-                        <strong>Message Count:</strong> {selectedItem.message_count}
-                      </div>
-                      <div>
-                        <strong>Status:</strong>
-                        <Badge className="ml-2" variant="outline">
-                          {selectedItem.status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <strong>Date:</strong> {formatDate(selectedItem.created_at)}
-                      </div>
-                    </div>
-                  )}
+                  
                 </>
               )}
             </div>

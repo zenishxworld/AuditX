@@ -8,7 +8,6 @@ import {
   BookOpen, 
   Shield, 
   BarChart3, 
-  MessageCircle, 
   AlertTriangle,
   CheckCircle,
   Code,
@@ -55,25 +54,6 @@ const Docs = () => {
         {
           subtitle: 'Risk Levels',
           text: 'Tokens are classified as Low, Medium, or High risk based on multiple on-chain metrics and behavioral analysis.'
-        }
-      ]
-    },
-    {
-      id: 'chatbot-guide',
-      title: 'Smart Contract Chatbot',
-      icon: MessageCircle,
-      content: [
-        {
-          subtitle: 'How to Use',
-          text: 'Ask questions about smart contract development, security best practices, Solidity syntax, and blockchain concepts.'
-        },
-        {
-          subtitle: 'Example Questions',
-          text: 'Try asking about reentrancy attacks, gas optimization, ERC standards, DeFi protocols, or testing strategies.'
-        },
-        {
-          subtitle: 'Best Practices',
-          text: 'Be specific with your questions and provide context when asking about code-related issues for better responses.'
         }
       ]
     },

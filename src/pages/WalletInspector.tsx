@@ -255,6 +255,13 @@ const WalletInspector = () => {
           </CardContent>
           </Card>
 
+          {/* Extra Section (3rd position) */}
+          <div className="rounded-lg border border-border/50 bg-card/40 p-4">
+            <p className="text-sm text-muted-foreground">
+              Wallet Inspector extra section
+            </p>
+          </div>
+
           {/* Analysis Options */}
           <Card className="border-border/50 bg-card/40 backdrop-blur-sm">
             <CardHeader>
@@ -526,7 +533,8 @@ const WalletInspector = () => {
                             alt={token.symbol}
                             className="w-8 h-8 rounded-full"
                             onError={(e) => {
-                              e.currentTarget.src = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#374151"/><text x="16" y="20" text-anchor="middle" fill="white" font-size="12">' + token.symbol.charAt(0) + '</text></svg>')}`;
+                              const walletSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect x="6" y="9" width="20" height="14" rx="4" fill="#374151"/><rect x="18" y="12" width="8" height="8" rx="2" fill="#4B5563"/><circle cx="22" cy="16" r="2" fill="white"/></svg>';
+                              e.currentTarget.src = `data:image/svg+xml;base64,${btoa(walletSvg)}`;
                             }}
                           />
                           <div>

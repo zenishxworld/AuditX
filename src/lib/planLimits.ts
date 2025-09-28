@@ -3,19 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 export const FREE_LIMITS = {
   audits: 5,
   tokens: 3,
-  chatMessages: 100,
 };
 
 export const PRO_LIMITS = {
   audits: 50,
   tokens: 50,
-  chatMessages: Infinity,
 };
 
 export const PREMIUM_LIMITS = {
   audits: Infinity,
   tokens: Infinity,
-  chatMessages: Infinity,
 };
 
 export type PlanType = 'Free' | 'Pro' | 'Premium';
@@ -58,32 +55,22 @@ export async function getUserUsage(userId: string) {
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId);
 
-  // Sum chat messages
-  const { data: chats } = await supabase
-    .from('chats')
-    .select('message_count')
-    .eq('user_id', userId);
-
-  const chatMessages = (chats || []).reduce((sum, c) => sum + (c.message_count || 0), 0);
-
   return {
     audits: auditsCount || 0,
     tokens: tokensCount || 0,
-    chatMessages,
   };
 }
 
-export function isOverLimit(usage: { audits: number; tokens: number; chatMessages: number }, planType: PlanType) {
+export function isOverLimit(usage: { audits: number; tokens: number }, planType: PlanType) {
   const limits = getPlanLimits(planType);
   return (
     (limits.audits !== Infinity && usage.audits >= limits.audits) ||
-    (limits.tokens !== Infinity && usage.tokens >= limits.tokens) ||
-    (limits.chatMessages !== Infinity && usage.chatMessages >= limits.chatMessages)
+    (limits.tokens !== Infinity && usage.tokens >= limits.tokens)
   );
 }
 
 // For backward compatibility
-export function isOverFreeLimit(usage: { audits: number; tokens: number; chatMessages: number }) {
+export function isOverFreeLimit(usage: { audits: number; tokens: number }) {
   return isOverLimit(usage, 'Free');
 }
 

@@ -1,4 +1,1 @@
 project_id = "dzjotrzhwubdatmpjdmc"
-
-[functions.chatbot-ai]
-verify_jwt = false

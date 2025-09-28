@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Shield, Zap, MessageCircle, BarChart3, CreditCard, User, BookOpen, LogOut } from 'lucide-react';
+import { Menu, X, Shield, Zap, BarChart3, CreditCard, User, BookOpen, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const Navbar = () => {
@@ -13,7 +13,6 @@ const Navbar = () => {
     { name: 'Home', href: '/', icon: Shield },
     { name: 'Audit', href: '/audit', icon: Shield, protected: true },
     { name: 'Scanner', href: '/scanner', icon: BarChart3, protected: true },
-    { name: 'Chatbot', href: '/chatbot', icon: MessageCircle, protected: true },
     { name: 'Wallet Inspector', href: '/wallet-inspector', icon: Zap, protected: true },
     { name: 'Dashboard', href: '/dashboard', icon: User, protected: true },
     { name: 'Pricing', href: '/pricing', icon: CreditCard },

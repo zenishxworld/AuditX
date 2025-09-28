@@ -5,14 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Shield, 
   BarChart3, 
-  MessageCircle, 
   Zap, 
   Users,
   Award,
   TrendingUp,
   Lock,
   CheckCircle,
-  Star
+  Star,
+  Wallet
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -34,9 +34,9 @@ const Index = () => {
       color: "text-neon-blue"
     },
     {
-      icon: MessageCircle,
-      title: "Expert AI Assistant",
-      description: "24/7 smart contract chatbot with deep blockchain knowledge",
+      icon: Wallet,
+      title: "Wallet Inspector",
+      description: "Analyze wallet risk, holdings, and on-chain activity",
       color: "text-purple-accent"
     },
     {
@@ -50,7 +50,7 @@ const Index = () => {
   const stats = [
     { number: "10,000+", label: "Contracts Audited", icon: Shield },
     { number: "50,000+", label: "Tokens Scanned", icon: BarChart3 },
-    { number: "1M+", label: "Questions Answered", icon: MessageCircle },
+    { number: "100,000+", label: "Wallets Inspected", icon: Wallet },
     { number: "99.9%", label: "Uptime", icon: CheckCircle }
   ];
 
