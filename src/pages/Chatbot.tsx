@@ -1,16 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, MessageCircle, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar } from '@/components/ui/avatar';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Bot, User, AlertCircle, RefreshCw } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-// Message type definition
 interface Message {
   id: string;
   content: string;
@@ -18,7 +16,6 @@ interface Message {
   timestamp: Date;
 }
 
-// Chat session type definition
 interface ChatSession {
   id: string;
   topic: string;
@@ -26,52 +23,24 @@ interface ChatSession {
   created_at: Date;
 }
 
-// Generate local responses when backend is unavailable
-const generateLocalResponse = (message: string): string => {
-  const lowerMessage = message.toLowerCase();
-  
-  if (lowerMessage.includes("hello") || lowerMessage.includes("hi")) {
-    return "Hello! How can I assist you with smart contract security today?";
-  } 
-  else if (lowerMessage.includes("reentrancy")) {
-    return "Reentrancy attacks occur when a function makes an external call to another untrusted contract before it resolves its state. To prevent this:\n\n1. Use the Checks-Effects-Interactions pattern\n2. Implement reentrancy guards\n3. Consider using OpenZeppelin's ReentrancyGuard\n\nWould you like to see a code example of a secure implementation?";
-  }
-  else if (lowerMessage.includes("audit")) {
-    return "AuditX provides comprehensive smart contract audits that check for common vulnerabilities including:\n\n- Reentrancy attacks\n- Integer overflow/underflow\n- Access control issues\n- Gas optimization problems\n- Logic errors\n\nYou can submit your contract for audit through the Audit page. Would you like me to explain any specific vulnerability in more detail?";
-  }
-  else if (lowerMessage.includes("solidity")) {
-    return "Solidity is the primary programming language for Ethereum smart contracts. When writing secure Solidity code, remember to:\n\n- Use the latest stable compiler version\n- Implement proper access controls\n- Be careful with external calls\n- Use SafeMath for arithmetic operations in versions before 0.8.0\n- Follow established patterns and use audited libraries like OpenZeppelin\n\nDo you have a specific Solidity question I can help with?";
-  }
-  else if (lowerMessage.includes("web3") || lowerMessage.includes("blockchain")) {
-    return "Web3 refers to the decentralized web built on blockchain technology. Key components include:\n\n- Smart contracts for trustless execution of agreements\n- Decentralized applications (dApps) that run on blockchain networks\n- Tokens and cryptocurrencies as digital assets\n- Decentralized finance (DeFi) protocols\n\nAuditX helps ensure the security of these Web3 applications through comprehensive auditing.";
-  }
-  else {
-    return "Thank you for your message. I'm an AI assistant specialized in blockchain security and smart contract development. I can help with:\n\n- Smart contract security best practices\n- Code vulnerability analysis\n- Solidity programming questions\n- Blockchain concepts and standards\n\nPlease feel free to ask specific questions about your smart contract needs!";
-  }
-};
-
 const Chatbot = () => {
-  // State management
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeSession, setActiveSession] = useState<string | null>(null);
-  
-  // References
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  
-  // Hooks
-  const { toast } = useToast();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string>('');
+  const [selectedChatId, setSelectedChatId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   // Load chat sessions on component mount
   useEffect(() => {
@@ -80,558 +49,359 @@ const Chatbot = () => {
     }
   }, [user]);
 
-  // Only scroll to bottom on initial load or when user sends a message
-  // This prevents automatic scrolling when receiving messages
-  const [shouldScroll, setShouldScroll] = useState(true);
-  
-  useEffect(() => {
-    if (shouldScroll) {
-      scrollToBottom();
-      setShouldScroll(false);
-    }
-  }, [messages, shouldScroll]);
-
-  // Focus input when component mounts
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  // Load chat sessions from database
   const loadChatSessions = async () => {
+    if (!user) return;
+
     try {
       const { data, error } = await supabase
-        .from('chat_sessions')
+        .from('chats')
         .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-      
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+
       if (error) throw error;
-      
+
       if (data) {
-        const formattedSessions = data.map(session => ({
+        const sessions = data.map(session => ({
           id: session.id,
-          topic: session.topic || 'New Conversation',
-          messages: session.messages || [],
+          topic: session.topic,
+          messages: [], // Messages will be loaded separately
           created_at: new Date(session.created_at)
         }));
+        setChatSessions(sessions);
         
-        setSessions(formattedSessions);
-        
-        // If there are sessions and no active session, set the most recent one as active
-        if (formattedSessions.length > 0 && !activeSession) {
-          setActiveSession(formattedSessions[0].id);
-          setSessionId(formattedSessions[0].id);
-          setMessages(formattedSessions[0].messages);
+        // Auto-select the first session if available
+        if (sessions.length > 0 && !selectedChatId) {
+          setSelectedChatId(sessions[0].id);
+          setCurrentChatId(sessions[0].id);
+          setMessages([]);
         }
       }
     } catch (error) {
       console.error('Error loading chat sessions:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load chat history. Please try again.',
-        variant: 'destructive',
-      });
     }
   };
 
-  // Create a new chat session
-  const createNewSession = async () => {
+  const createNewChat = async () => {
+    if (!user) return;
+
     try {
-      // For demo purposes, create a local session if backend is not available
-      const localSessionId = `local-${Date.now()}`;
-      
-      try {
-        const { data, error } = await supabase
-          .from('chat_sessions')
-          .insert([
-            { 
-              user_id: user?.id,
-              topic: 'New Conversation',
-              messages: []
-            }
-          ])
-          .select();
-        
-        if (error) {
-          console.warn('Using local session due to backend error:', error);
-          // Use local session as fallback
-          const newSession = {
-            id: localSessionId,
-            topic: 'New Conversation',
-            messages: [],
-            created_at: new Date()
-          };
-          
-          setSessions([newSession, ...sessions]);
-          setActiveSession(localSessionId);
-          setSessionId(localSessionId);
-          setMessages([]);
-          
-          toast({
-            title: 'Success',
-            description: 'New conversation started (local mode).',
-          });
-        } else if (data && data[0]) {
-          const newSession = {
-            id: data[0].id,
-            topic: data[0].topic,
-            messages: [],
-            created_at: new Date(data[0].created_at)
-          };
-          
-          setSessions([newSession, ...sessions]);
-          setActiveSession(newSession.id);
-          setSessionId(newSession.id);
-          setMessages([]);
-          
-          toast({
-            title: 'Success',
-            description: 'New conversation started.',
-          });
-        }
-      } catch (error) {
-        console.error('Error creating session:', error);
-        // Create local fallback session
-        const newSession = {
-          id: localSessionId,
-          topic: 'New Conversation',
+      const { data, error } = await supabase
+        .from('chats')
+        .insert({
+          user_id: user.id,
+          topic: 'New Chat',
+          message_count: 0,
+          status: 'Active'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const newSession: ChatSession = {
+          id: data.id,
+          topic: data.topic,
           messages: [],
-          created_at: new Date()
+          created_at: new Date(data.created_at)
         };
-        
-        setSessions([newSession, ...sessions]);
-        setActiveSession(localSessionId);
-        setSessionId(localSessionId);
+        setChatSessions(prev => [newSession, ...prev]);
+        setSelectedChatId(newSession.id);
+        setCurrentChatId(newSession.id);
         setMessages([]);
-        
-        toast({
-          title: 'Success',
-          description: 'New conversation started (local mode).',
-        });
       }
     } catch (error) {
-      console.error('Error creating new session:', error);
+      console.error('Error creating new chat:', error);
       toast({
         title: 'Error',
-        description: 'Failed to create new conversation. Please try again.',
+        description: 'Failed to create new chat session',
         variant: 'destructive',
       });
     }
   };
 
-  // Switch to a different chat session
-  const switchSession = (id: string) => {
-    const session = sessions.find(s => s.id === id);
+  const selectChat = (chatId: string) => {
+    const session = chatSessions.find(s => s.id === chatId);
     if (session) {
-      setActiveSession(id);
-      setSessionId(id);
+      setSelectedChatId(chatId);
+      setCurrentChatId(chatId);
       setMessages(session.messages);
     }
   };
 
-  // Update session topic
-  const updateSessionTopic = async (id: string, topic: string) => {
+  const deleteChat = async (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
     try {
-      if (id.startsWith('local-')) {
-        // Update local session
-        setSessions(sessions.map(session => 
-          session.id === id ? { ...session, topic } : session
-        ));
-        
-        toast({
-          title: 'Success',
-          description: 'Conversation topic updated (local mode).',
-        });
-        return;
-      }
-      
       const { error } = await supabase
-        .from('chat_sessions')
-        .update({ topic })
-        .eq('id', id);
-      
+        .from('chats')
+        .delete()
+        .eq('id', chatId);
+
       if (error) throw error;
+
+      setChatSessions(prev => prev.filter(s => s.id !== chatId));
       
-      setSessions(sessions.map(session => 
-        session.id === id ? { ...session, topic } : session
-      ));
-      
+      if (selectedChatId === chatId) {
+        const remaining = chatSessions.filter(s => s.id !== chatId);
+        if (remaining.length > 0) {
+          setSelectedChatId(remaining[0].id);
+          setCurrentChatId(remaining[0].id);
+          setMessages(remaining[0].messages);
+        } else {
+          setSelectedChatId('');
+          setCurrentChatId('');
+          setMessages([]);
+        }
+      }
+
       toast({
         title: 'Success',
-        description: 'Conversation topic updated.',
+        description: 'Chat deleted successfully',
       });
     } catch (error) {
-      console.error('Error updating session topic:', error);
+      console.error('Error deleting chat:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update conversation topic. Please try again.',
+        description: 'Failed to delete chat',
         variant: 'destructive',
       });
     }
   };
 
-  // Handle sending a message
-  const handleSendMessage = async () => {
-    if (!input.trim()) return;
+  const generateResponse = (userMessage: string): string => {
+    const lowerMessage = userMessage.toLowerCase();
     
-    // Enable scrolling only when user sends a message
-    setShouldScroll(true);
-    
-    // Create a new session if none exists
-    if (!sessionId) {
-      try {
-        // For demo purposes, create a local session if backend is not available
-        const localSessionId = `local-${Date.now()}`;
-        
-        // Try to create a session in Supabase
-        const { data, error } = await supabase
-          .from('chat_sessions')
-          .insert([
-            { 
-              user_id: user?.id,
-              topic: input.length > 30 ? `${input.substring(0, 30)}...` : input,
-              messages: []
-            }
-          ])
-          .select();
-        
-        if (error) {
-          console.warn('Using local session due to backend error:', error);
-          // Use local session as fallback
-          setSessionId(localSessionId);
-          setActiveSession(localSessionId);
-          
-          const newSession = {
-            id: localSessionId,
-            topic: input.length > 30 ? `${input.substring(0, 30)}...` : input,
-            messages: [],
-            created_at: new Date()
-          };
-          
-          setSessions([newSession, ...sessions]);
-        } else if (data && data[0]) {
-          setSessionId(data[0].id);
-          setActiveSession(data[0].id);
-          
-          const newSession = {
-            id: data[0].id,
-            topic: data[0].topic,
-            messages: [],
-            created_at: new Date(data[0].created_at)
-          };
-          
-          setSessions([newSession, ...sessions]);
-        }
-      } catch (error) {
-        console.error('Error creating session:', error);
-        // Create local fallback session
-        const localSessionId = `local-${Date.now()}`;
-        setSessionId(localSessionId);
-        setActiveSession(localSessionId);
-        
-        const newSession = {
-          id: localSessionId,
-          topic: input.length > 30 ? `${input.substring(0, 30)}...` : input,
-          messages: [],
-          created_at: new Date()
-        };
-        
-        setSessions([newSession, ...sessions]);
-      }
+    if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
+      return 'Hello! How can I assist you with smart contract security today?';
+    } else if (lowerMessage.includes('audit')) {
+      return 'I can help you with smart contract auditing. What specific security concerns do you have?';
+    } else if (lowerMessage.includes('vulnerability')) {
+      return 'Common vulnerabilities include reentrancy attacks, overflow/underflow, and access control issues. Which would you like to learn about?';
+    } else {
+      return 'Thank you for your message. I\'m here to help with smart contract security questions. What would you like to know?';
     }
-    
-    // Add user message to state
+  };
+
+  const sendMessage = async () => {
+    if (!message.trim() || isLoading) return;
+
+    setIsLoading(true);
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: input,
+      content: message,
       role: 'user',
       timestamp: new Date()
     };
-    
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setError(null);
-    setIsTyping(true);
-    
-    try {
-      // Generate a local AI response if the session is local or if backend fails
-      let aiResponse = "";
-      
-      if (sessionId?.startsWith('local-')) {
-        // Local fallback responses based on keywords
-        aiResponse = generateLocalResponse(input);
-      } else {
-        // Try to call the Supabase Edge Function for AI response
-        try {
-          const { data, error } = await supabase.functions.invoke('chatbot-ai', {
-            body: { 
-              message: input,
-              history: messages,
-              session_id: sessionId
-            }
-          });
-          
-          if (error) {
-            console.warn('Using local AI response due to backend error:', error);
-            aiResponse = generateLocalResponse(input);
-          } else {
-            aiResponse = data.message || "I'm sorry, I couldn't process your request.";
-          }
-        } catch (edgeFunctionError) {
-          console.error('Edge function error:', edgeFunctionError);
-          aiResponse = generateLocalResponse(input);
-        }
-      }
-      
-      // Add AI response to state
-      const aiMessage: Message = {
-        id: Date.now().toString() + '-ai',
-        content: aiResponse,
+
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    setMessage('');
+
+    // Simulate AI response
+    setTimeout(() => {
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: generateResponse(userMessage.content),
         role: 'assistant',
         timestamp: new Date()
       };
+
+      const finalMessages = [...updatedMessages, aiResponse];
+      setMessages(finalMessages);
       
-      setMessages(prev => [...prev, aiMessage]);
-      
-      // Update the messages in the database if using a real session
-      const updatedMessages = [...messages, userMessage, aiMessage];
-      
-      if (!sessionId?.startsWith('local-')) {
-        try {
-          await supabase
-            .from('chat_sessions')
-            .update({ 
-              messages: updatedMessages,
-              // Update topic if this is the first message
-              ...(messages.length === 0 && { 
-                topic: input.length > 30 ? `${input.substring(0, 30)}...` : input 
-              })
-            })
-            .eq('id', sessionId);
-        } catch (dbError) {
-          console.warn('Failed to update database, continuing with local state:', dbError);
-        }
-      }
-      
-      // Always update the local state
-      setSessions(sessions.map(session => 
-        session.id === sessionId 
-          ? { 
-              ...session, 
-              topic: messages.length === 0 ? (input.length > 30 ? `${input.substring(0, 30)}...` : input) : session.topic,
-              messages: updatedMessages
-            } 
+      // Update the session in state
+      setChatSessions(prev => prev.map(session =>
+        session.id === currentChatId
+          ? { ...session, messages: finalMessages }
           : session
       ));
-    } catch (error) {
-      console.error('Error getting AI response:', error);
-      setError('Failed to get response. Please try again.');
-    } finally {
-      setIsTyping(false);
+
+      setIsLoading(false);
+    }, 1000);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   };
 
-  // Format timestamp
-  const formatTimestamp = (date: Date) => {
-    return new Date(date).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
   return (
-    <div className="container mx-auto py-8 max-w-6xl">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Sidebar with chat history */}
-        <div className="md:col-span-1">
-          <Card className="h-[calc(100vh-10rem)]">
-            <CardHeader>
-              <CardTitle className="flex justify-between items-center">
-                <span>Conversations</span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={createNewSession}
-                >
-                  New Chat
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[calc(100vh-16rem)]">
-                <div className="space-y-2">
-                  {sessions.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-8">
-                      No conversations yet
+    <ProtectedRoute>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent mb-4">
+                AI Security Advisor
+              </h1>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Get expert advice on smart contract security, audit best practices, and vulnerability assessment.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
+              {/* Chat Sessions Sidebar */}
+              <div className="lg:col-span-1">
+                <Card className="h-full flex flex-col">
+                  <div className="p-4 border-b border-border/50">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-foreground">Conversations</h3>
+                      <Button size="sm" onClick={createNewChat} className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/80 hover:to-purple-600/80">
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
-                  ) : (
-                    sessions.map(session => (
-                      <div 
-                        key={session.id}
-                        className={`p-3 rounded-md cursor-pointer transition-colors ${
-                          activeSession === session.id 
-                            ? 'bg-primary/10 border border-primary/20' 
-                            : 'hover:bg-secondary'
-                        }`}
-                        onClick={() => switchSession(session.id)}
-                      >
-                        <div className="font-medium truncate">{session.topic}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {session.created_at.toLocaleDateString()}
+                  </div>
+                  
+                  <ScrollArea className="flex-1 p-4">
+                    {chatSessions.length === 0 ? (
+                      <div className="text-center text-muted-foreground py-8">
+                        <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No conversations yet</p>
+                        <p className="text-sm mt-2">Start a new chat to begin</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {chatSessions.map((session) => (
+                          <div
+                            key={session.id}
+                            className={`p-3 rounded-lg cursor-pointer transition-all group relative ${
+                              selectedChatId === session.id
+                                ? 'bg-primary/10 border border-primary/20'
+                                : 'hover:bg-muted/50 border border-transparent'
+                            }`}
+                            onClick={() => selectChat(session.id)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{session.topic}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {session.created_at.toLocaleDateString()}
+                                </p>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                                onClick={(e) => deleteChat(session.id, e)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </Card>
+              </div>
+
+              {/* Chat Area */}
+              <div className="lg:col-span-3">
+                <Card className="h-full flex flex-col">
+                  {/* Messages */}
+                  <ScrollArea className="flex-1 p-6">
+                    {messages.length === 0 ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <MessageCircle className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+                          <h3 className="text-lg font-semibold mb-2">Start a conversation</h3>
+                          <p className="text-muted-foreground">
+                            Ask me about smart contract security, auditing, or any blockchain development questions.
+                          </p>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Main chat area */}
-        <div className="md:col-span-3">
-          <Card className="h-[calc(100vh-10rem)] flex flex-col">
-            <CardHeader>
-              <CardTitle>AuditX AI Assistant</CardTitle>
-              <CardDescription>
-                Ask questions about smart contracts, security, and blockchain development
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent className="flex-grow overflow-hidden">
-              <ScrollArea className="h-[calc(100vh-22rem)]">
-                <div className="space-y-4 pb-4">
-                  {messages.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-12">
-                      <Bot className="h-12 w-12 mx-auto mb-4 text-primary/60" />
-                      <p>Start a conversation with the AuditX AI Assistant</p>
-                      <p className="text-sm mt-2">
-                        Ask about smart contract security, development best practices, or code analysis
-                      </p>
-                    </div>
-                  ) : (
-                    messages.map(message => (
-                      <div 
-                        key={message.id} 
-                        className={`flex ${
-                          message.role === 'user' ? 'justify-end' : 'justify-start'
-                        }`}
-                      >
-                        <div 
-                          className={`flex gap-3 max-w-[80%] ${
-                            message.role === 'user' ? 'flex-row-reverse' : ''
-                          }`}
-                        >
-                          <Avatar className={`h-8 w-8 ${
-                            message.role === 'assistant' ? 'bg-primary/20' : 'bg-secondary'
-                          }`}>
-                            {message.role === 'assistant' ? (
-                              <Bot className="h-4 w-4" />
-                            ) : (
-                              <User className="h-4 w-4" />
+                    ) : (
+                      <div className="space-y-6">
+                        {messages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`flex gap-4 ${
+                              msg.role === 'user' ? 'justify-end' : 'justify-start'
+                            }`}
+                          >
+                            {msg.role === 'assistant' && (
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center">
+                                <MessageCircle className="h-4 w-4 text-white" />
+                              </div>
                             )}
-                          </Avatar>
-                          <div>
-                            <div 
-                              className={`rounded-lg p-3 ${
-                                message.role === 'assistant' 
-                                  ? 'bg-secondary border border-border' 
-                                  : 'bg-primary text-primary-foreground'
+                            
+                            <div
+                              className={`max-w-[70%] p-4 rounded-lg ${
+                                msg.role === 'user'
+                                  ? 'bg-gradient-to-r from-primary to-purple-600 text-white'
+                                  : 'bg-muted/50 border border-border/50'
                               }`}
                             >
-                              <div className="whitespace-pre-wrap">{message.content}</div>
+                              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                              <p className={`text-xs mt-2 ${
+                                msg.role === 'user' ? 'text-white/70' : 'text-muted-foreground'
+                              }`}>
+                                {msg.timestamp.toLocaleTimeString()}
+                              </p>
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1 px-1">
-                              {formatTimestamp(message.timestamp)}
+                            
+                            {msg.role === 'user' && (
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                                <span className="text-sm font-medium">
+                                  {user?.email?.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        
+                        {isLoading && (
+                          <div className="flex gap-4 justify-start">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center">
+                              <MessageCircle className="h-4 w-4 text-white" />
+                            </div>
+                            <div className="bg-muted/50 border border-border/50 p-4 rounded-lg">
+                              <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )}
+                        
+                        <div ref={messagesEndRef} />
                       </div>
-                    ))
-                  )}
-                  
-                  {/* Typing indicator */}
-                  {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="flex gap-3 max-w-[80%]">
-                        <Avatar className="h-8 w-8 bg-primary/20">
-                          <Bot className="h-4 w-4" />
-                        </Avatar>
-                        <div>
-                          <div className="rounded-lg p-3 bg-secondary border border-border">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                              <div className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                              <div className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Error message */}
-                  {error && (
-                    <Alert variant="destructive" className="mt-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
+                    )}
+                  </ScrollArea>
+
+                  {/* Input Area */}
+                  <div className="p-6 border-t border-border/50">
+                    <div className="flex gap-4">
+                      <Input
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Type your message here..."
+                        className="flex-1 bg-background/50 border-border/50"
+                        disabled={isLoading}
+                      />
                       <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="ml-auto" 
-                        onClick={() => setError(null)}
+                        onClick={sendMessage}
+                        disabled={!message.trim() || isLoading}
+                        className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/80 hover:to-purple-600/80"
                       >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Retry
+                        <Send className="h-4 w-4" />
                       </Button>
-                    </Alert>
-                  )}
-                  
-                  {/* Invisible element to scroll to */}
-                  <div ref={messagesEndRef} />
-                </div>
-              </ScrollArea>
-            </CardContent>
-            
-            <CardFooter>
-              <form 
-                className="flex w-full items-center space-x-2" 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSendMessage();
-                }}
-              >
-                <Textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1 min-h-[2.5rem] max-h-[10rem]"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  disabled={isTyping}
-                />
-                <Button 
-                  type="submit" 
-                  size="icon" 
-                  disabled={!input.trim() || isTyping}
-                >
-                  {isTyping ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </Button>
-              </form>
-            </CardFooter>
-          </Card>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 };
 
