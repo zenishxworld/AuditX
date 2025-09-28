@@ -56,7 +56,7 @@ const Pricing = () => {
         { name: 'PDF report downloads', included: true },
         { name: 'Gas optimization tips', included: true },
         { name: 'Priority support', included: true },
-        { name: 'API access', included: false }
+        { name: 'White-label solutions', included: false }
       ],
       cta: 'Choose Pro',
       popular: true,
@@ -72,7 +72,7 @@ const Pricing = () => {
         { name: 'Enterprise-grade analysis', included: true },
         { name: 'Unlimited token scans', included: true },
         { name: 'Custom PDF reports', included: true },
-        { name: 'API access', included: true },
+        { name: 'Gas Optimization Tips', included: true },
         { name: 'White-label solutions', included: true },
         { name: 'Dedicated support', included: true }
       ],

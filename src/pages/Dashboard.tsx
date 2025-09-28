@@ -46,6 +46,15 @@ interface TokenScan {
   created_at: string;
 }
 
+interface WalletInspection {
+  id: string;
+  address: string;
+  risk_level: string | null;
+  risk_score: number | null;
+  chain: string | null;
+  created_at: string;
+}
+
 // Chat feature removed
 
 interface DashboardStats {
@@ -60,6 +69,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('audits');
   const [audits, setAudits] = useState<AuditReport[]>([]);
   const [tokens, setTokens] = useState<TokenScan[]>([]);
+  const [walletInspections, setWalletInspections] = useState<WalletInspection[]>([]);
   
   const [stats, setStats] = useState<DashboardStats>({
     totalAudits: 0,
@@ -90,7 +100,7 @@ const Dashboard = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const [auditsRes, tokensRes, planType] = await Promise.all([
+      const [auditsRes, tokensRes, walletRes, planType] = await Promise.all([
         supabase
           .from('audit_reports')
           .select('*')
@@ -98,6 +108,11 @@ const Dashboard = () => {
           .order('created_at', { ascending: false }),
         supabase
           .from('token_scans')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('wallet_inspections')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
@@ -109,26 +124,16 @@ const Dashboard = () => {
 
       const auditsData = auditsRes.data || [];
       const tokensData = tokensRes.data || [];
+      const walletData = (walletRes as any)?.error ? [] : (walletRes as any)?.data || [];
       // Attempt to fetch wallet inspector history if table exists
-      let walletInspectionsCount = 0;
-      try {
-        const walletRes = await supabase
-          .from('wallet_inspections' as any)
-          .select('id', { count: 'exact' })
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-        if (!walletRes.error) {
-          walletInspectionsCount = (walletRes.data || []).length;
-        }
-      } catch (_) {
-        // Fallback silently if table is not available
-      }
+      const walletInspectionsCount = Array.isArray(walletData) ? walletData.length : 0;
       const avgScore = auditsData.length
         ? auditsData.reduce((sum, audit) => sum + (audit.score || 0), 0) / auditsData.length
         : 0;
 
       setAudits(auditsData);
       setTokens(tokensData);
+      setWalletInspections(Array.isArray(walletData) ? walletData : []);
       setStats({
         totalAudits: auditsData.length,
         tokensScanned: tokensData.length,
@@ -451,7 +456,7 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <p className="text-sm text-muted-foreground">
                     Launch the full Wallet Inspector tool to analyze addresses in depth.
                   </p>
@@ -459,6 +464,31 @@ const Dashboard = () => {
                     <Eye className="h-4 w-4 mr-2" />
                     Open Wallet Inspector
                   </Button>
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Recent Wallet Inspections</h3>
+                    {walletInspections.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No wallet inspections found yet.</div>
+                    ) : (
+                      walletInspections.map((wi) => (
+                        <div key={wi.id} className="p-4 bg-secondary/30 rounded-lg border border-border flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div className="p-2 bg-primary/20 rounded">
+                              <Wallet className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-lg font-mono">{truncateAddress(wi.address)}</h3>
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                                <Badge className={getRiskColor((wi.risk_level || 'unknown'))}>{(wi.risk_level || 'Unknown')} Risk</Badge>
+                                <span className="text-sm text-muted-foreground">Score: {wi.risk_score ?? '—'}</span>
+                                <span className="text-xs text-muted-foreground">{wi.chain || 'Unknown Chain'}</span>
+                                <span className="text-xs text-muted-foreground">{formatDate(wi.created_at)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
