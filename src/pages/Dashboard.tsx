@@ -5,24 +5,25 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  FileText, 
-  Shield, 
-  BarChart3, 
-  MessageCircle, 
-  Download,
-  Trash2,
-  Eye,
-  Calendar,
-  CreditCard,
-  TrendingUp,
-  AlertTriangle,
-  CheckCircle,
-  Star,
-  Loader2,
-  Crown,
-  Infinity
-} from 'lucide-react';
+  import { 
+    FileText, 
+    Shield, 
+    BarChart3, 
+    MessageCircle,
+    Wallet,
+    Download,
+    Trash2,
+    Eye,
+    Calendar,
+    CreditCard,
+    TrendingUp,
+    AlertTriangle,
+    CheckCircle,
+    Star,
+    Loader2,
+    Crown,
+    Infinity
+  } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -312,7 +313,7 @@ const Dashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Chat Messages</p>
+                  <p className="text-sm text-muted-foreground">Wallet Inspector</p>
                   <p className="text-2xl font-bold text-primary">{stats.chatMessages}</p>
                 </div>
                 <MessageCircle className="h-8 w-8 text-primary" />
@@ -340,7 +341,7 @@ const Dashboard = () => {
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="audits">Audit History</TabsTrigger>
             <TabsTrigger value="scans">Token Scans</TabsTrigger>
-            <TabsTrigger value="chats">Chat History</TabsTrigger>
+            <TabsTrigger value="wallet">Wallet Inspector</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
           </TabsList>
           
@@ -448,51 +449,26 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
           
-          <TabsContent value="chats" className="mt-6">
+          <TabsContent value="wallet" className="mt-6">
             <Card className="bg-gradient-card border-border">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <MessageCircle className="h-5 w-5 text-primary" />
-                  <span>Chat History</span>
+                  <Wallet className="h-5 w-5 text-primary" />
+                  <span>Wallet Inspector</span>
                 </CardTitle>
                 <CardDescription>
-                  Your chatbot conversation history
+                  Inspect any Ethereum wallet’s risk, holdings, and activity.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {chats.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No chat history found. Start a conversation with our AI chatbot!
-                    </div>
-                  ) : (
-                    chats.map((chat) => (
-                      <div key={chat.id} className="p-4 bg-secondary/30 rounded-lg border border-border">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="p-2 bg-primary/20 rounded">
-                              <MessageCircle className="h-4 w-4 text-primary" />
-                            </div>
-                            <div>
-                              <h3 className="font-medium">{chat.topic}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {chat.message_count} messages • {formatDate(chat.created_at)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-4">
-                            <Badge variant="outline">{chat.status}</Badge>
-                            <div className="flex space-x-2">
-                              <Button size="sm" variant="outline" onClick={() => handleView(chat, 'chat')}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                View
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                  <p className="text-sm text-muted-foreground">
+                    Launch the full Wallet Inspector tool to analyze addresses in depth.
+                  </p>
+                  <Button className="w-fit" variant="outline" onClick={() => window.location.assign('/wallet-inspector')}>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Open Wallet Inspector
+                  </Button>
                 </div>
               </CardContent>
             </Card>

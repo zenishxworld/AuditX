@@ -49,6 +49,7 @@ const Footer = () => {
             <Link to="/" className="hover:underline w-fit hover:text-primary transition-colors">Home</Link>
             <Link to="/audit" className="hover:underline w-fit hover:text-primary transition-colors" onClick={e => handleProtectedNav(e, '/audit')}>Audit</Link>
             <Link to="/scanner" className="hover:underline w-fit hover:text-primary transition-colors" onClick={e => handleProtectedNav(e, '/scanner')}>Scanner</Link>
+            <Link to="/wallet-inspector" className="hover:underline w-fit hover:text-primary transition-colors" onClick={e => handleProtectedNav(e, '/wallet-inspector')}>Wallet Inspector</Link>
             <Link to="/chatbot" className="hover:underline w-fit hover:text-primary transition-colors" onClick={e => handleProtectedNav(e, '/chatbot')}>Chatbot</Link>
             <Link to="/dashboard" className="hover:underline w-fit hover:text-primary transition-colors" onClick={e => handleProtectedNav(e, '/dashboard')}>Dashboard</Link>
             <Link to="/pricing" className="hover:underline w-fit hover:text-primary transition-colors">Pricing</Link>
