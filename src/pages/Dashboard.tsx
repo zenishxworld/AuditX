@@ -113,8 +113,8 @@ const Dashboard = () => {
       let walletInspectionsCount = 0;
       try {
         const walletRes = await supabase
-          .from('wallet_inspections')
-          .select('id')
+          .from('wallet_inspections' as any)
+          .select('id', { count: 'exact' })
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         if (!walletRes.error) {

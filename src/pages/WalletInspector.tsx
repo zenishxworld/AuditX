@@ -255,13 +255,6 @@ const WalletInspector = () => {
           </CardContent>
           </Card>
 
-          {/* Extra Section (3rd position) */}
-          <div className="rounded-lg border border-border/50 bg-card/40 p-4">
-            <p className="text-sm text-muted-foreground">
-              Wallet Inspector extra section
-            </p>
-          </div>
-
           {/* Analysis Options */}
           <Card className="border-border/50 bg-card/40 backdrop-blur-sm">
             <CardHeader>
@@ -281,7 +274,7 @@ const WalletInspector = () => {
                     id="chain"
                     value={chain}
                     onChange={(e) => setChain(e.target.value as 'ethereum' | 'polygon' | 'bsc')}
-                    className="w-full rounded-md border border-border/50 bg-background/50 p-2"
+                    className="w-full rounded-md border border-border/50 bg-background/60 text-foreground px-3 py-2 transition-colors duration-150 hover:bg-background/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus:border-primary/60 disabled:opacity-50"
                   >
                     <option value="ethereum">Ethereum (supported)</option>
                     <option value="polygon" disabled>Polygon (coming soon)</option>
@@ -294,7 +287,7 @@ const WalletInspector = () => {
                     id="depth"
                     value={analysisDepth}
                     onChange={(e) => setAnalysisDepth(e.target.value as 'basic' | 'standard' | 'advanced')}
-                    className="w-full rounded-md border border-border/50 bg-background/50 p-2"
+                    className="w-full rounded-md border border-border/50 bg-background/60 text-foreground px-3 py-2 transition-colors duration-150 hover:bg-background/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus:border-primary/60 disabled:opacity-50"
                   >
                     <option value="basic">Basic (fast)</option>
                     <option value="standard">Standard (balanced)</option>
@@ -533,8 +526,8 @@ const WalletInspector = () => {
                             alt={token.symbol}
                             className="w-8 h-8 rounded-full"
                             onError={(e) => {
-                              const walletSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect x="6" y="9" width="20" height="14" rx="4" fill="#374151"/><rect x="18" y="12" width="8" height="8" rx="2" fill="#4B5563"/><circle cx="22" cy="16" r="2" fill="white"/></svg>';
-                              e.currentTarget.src = `data:image/svg+xml;base64,${btoa(walletSvg)}`;
+                              const inspectedWalletSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect x="5" y="9" width="22" height="14" rx="4" fill="#1F2937"/><rect x="18" y="12" width="9" height="8" rx="2" fill="#374151"/><circle cx="23" cy="16" r="2" fill="#10B981"/><circle cx="12" cy="14" r="5" fill="none" stroke="#60A5FA" stroke-width="2"/><line x1="15.5" y1="17.5" x2="19" y2="21" stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/></svg>';
+                              e.currentTarget.src = `data:image/svg+xml;base64,${btoa(inspectedWalletSvg)}`;
                             }}
                           />
                           <div>

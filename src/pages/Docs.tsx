@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,10 +15,20 @@ import {
   Search,
   Mail,
   ExternalLink,
-  FileText
+  FileText,
+  Wallet
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const Docs = () => {
+  const { toast } = useToast();
+  const [supportEmail, setSupportEmail] = useState('');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   const sections = [
     {
       id: 'audit-guide',
@@ -54,6 +65,25 @@ const Docs = () => {
         {
           subtitle: 'Risk Levels',
           text: 'Tokens are classified as Low, Medium, or High risk based on multiple on-chain metrics and behavioral analysis.'
+        }
+      ]
+    },
+    {
+      id: 'wallet-inspector',
+      title: 'Wallet Inspector',
+      icon: Wallet,
+      content: [
+        {
+          subtitle: 'Getting Started',
+          text: 'Enter an Ethereum address (0x...) and click "Inspect Wallet" to analyze it.'
+        },
+        {
+          subtitle: 'Feature Overview',
+          text: 'Shows balances, token holdings, recent activity, and a simple risk score.'
+        },
+        {
+          subtitle: 'Privacy & Limits',
+          text: 'Analyses run on-demand and store minimal usage analytics; results may be incomplete for new wallets.'
         }
       ]
     },
@@ -162,7 +192,7 @@ const Docs = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Quick Navigation */}
+            {/* Quick Navigation (moved back to first position) */}
             <Card className="bg-gradient-card border-border">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -184,19 +214,6 @@ const Docs = () => {
                 ))}
               </CardContent>
             </Card>
-
-            {/* Search 
-            <Card className="bg-gradient-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Search className="h-5 w-5 text-purple-primary" />
-                  <span>Search Docs</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Input placeholder="Search documentation..." className="w-full" />
-              </CardContent>
-            </Card>*/}
 
             {/* Quick Links */}
             <Card className="bg-gradient-card border-border">
@@ -240,6 +257,8 @@ const Docs = () => {
                     id="support-email"
                     type="email" 
                     placeholder="your.email@example.com"
+                    value={supportEmail}
+                    onChange={(e) => setSupportEmail(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -248,10 +267,75 @@ const Docs = () => {
                     id="support-message"
                     placeholder="Describe your issue or question..."
                     rows={4}
+                    value={supportMessage}
+                    onChange={(e) => setSupportMessage(e.target.value)}
                   />
                 </div>
-                <Button className="w-full bg-gradient-primary hover:opacity-90">
-                  Send Message
+                <Button 
+                  className="w-full bg-gradient-primary hover:opacity-90"
+                  disabled={
+                    isSending ||
+                    !isValidEmail(supportEmail) ||
+                    supportMessage.trim().length < 4
+                  }
+                  onClick={async () => {
+                    if (!isValidEmail(supportEmail)) {
+                      toast({
+                        title: 'Invalid email',
+                        description: 'Please enter a valid email address.',
+                        variant: 'destructive',
+                      });
+                      return;
+                    }
+                    if (supportMessage.trim().length < 4) {
+                      toast({
+                        title: 'Message too short',
+                        description: 'Please provide a bit more detail.',
+                        variant: 'destructive',
+                      });
+                      return;
+                    }
+                    setIsSending(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke('contact-support', {
+                        body: { fromEmail: supportEmail.trim(), message: supportMessage.trim() }
+                      });
+
+                      if (error) {
+                        // Supabase client surfaced an error (network/authorization/etc.)
+                        throw new Error(error.message || 'Unexpected error');
+                      }
+
+                      if (data && (data as any).error) {
+                        // Edge Function returned an error payload
+                        const details = (data as any).details ? `\nDetails: ${JSON.stringify((data as any).details)}` : '';
+                        throw new Error(`${(data as any).error}${details}`);
+                      }
+
+                      toast({
+                        title: 'Message sent',
+                        description: 'We received your message and will reply soon.',
+                      });
+                      setSupportEmail('');
+                      setSupportMessage('');
+                    } catch (err: any) {
+                      console.error('Support message send error:', err);
+                      const msg = err?.message || 'Could not send your message right now.';
+                      let helpful = '';
+                      if (msg.includes('RESEND_API_KEY')) {
+                        helpful = '\nServer is missing mail credentials. Please configure and deploy.';
+                      }
+                      toast({
+                        title: 'Send failed',
+                        description: `${msg}${helpful}`,
+                        variant: 'destructive',
+                      });
+                    } finally {
+                      setIsSending(false);
+                    }
+                  }}
+                >
+                  {isSending ? 'Sending…' : 'Send Message'}
                 </Button>
               </CardContent>
             </Card>
