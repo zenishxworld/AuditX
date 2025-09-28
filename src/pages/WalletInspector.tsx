@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { fetchWalletData, type RawWalletData } from '@/lib/fetchWalletData';
 
 interface WalletData {
   address: string;
@@ -39,38 +41,57 @@ const WalletInspector = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Analysis options to intake information about features
+  const [analysisDepth, setAnalysisDepth] = useState<'basic' | 'standard' | 'advanced'>('standard');
+  const [includeNFTs, setIncludeNFTs] = useState<boolean>(true);
+  const [chain, setChain] = useState<'ethereum' | 'polygon' | 'bsc'>('ethereum');
+  const [dateRangeDays, setDateRangeDays] = useState<number>(90);
+  const [riskFocus, setRiskFocus] = useState<'general' | 'scam' | 'privacy' | 'compliance'>('general');
+
   const validateEthereumAddress = (addr: string): boolean => {
     return /^0x[a-fA-F0-9]{40}$/.test(addr);
   };
 
-  const calculateRiskLevel = (data: any): { level: 'low' | 'medium' | 'high', score: number } => {
+  const calculateRiskLevel = (data: RawWalletData): { level: 'low' | 'medium' | 'high', score: number } => {
+    // New scoring: higher score = higher risk
     let score = 0;
-    
-    // Age factor (older wallets are safer)
-    const age = data.first_tx_date ? Date.now() - new Date(data.first_tx_date).getTime() : 0;
-    const ageInDays = age / (1000 * 60 * 60 * 24);
-    
-    if (ageInDays > 365) score += 30;
-    else if (ageInDays > 90) score += 20;
-    else if (ageInDays > 30) score += 10;
-    
-    // Balance factor
-    if (data.total_usd_value > 10000) score += 25;
-    else if (data.total_usd_value > 1000) score += 15;
-    else if (data.total_usd_value > 100) score += 5;
-    
-    // Token diversity (more established tokens = safer)
-    const tokenCount = data.token_list?.length || 0;
-    if (tokenCount > 5 && tokenCount < 20) score += 20;
+
+    // Age factor: younger wallets are riskier
+    const ageMs = data.first_tx_date ? Date.now() - new Date(data.first_tx_date).getTime() : 0;
+    const ageInDays = ageMs / (1000 * 60 * 60 * 24);
+    if (!data.first_tx_date) {
+      score += 30; // no history
+    } else if (ageInDays < 7) score += 30;
+    else if (ageInDays < 30) score += 20;
+    else if (ageInDays < 90) score += 10;
+
+    // Balance factor: low balances are riskier
+    const total = data.total_usd_value || 0;
+    if (total < 100) score += 20;
+    else if (total < 1000) score += 10;
+
+    // Token diversity: fewer tokens increases risk
+    const tokenCount = data.token_holdings?.length || 0;
+    if (tokenCount <= 2) score += 25;
     else if (tokenCount <= 5) score += 15;
-    
-    // Chain activity
-    if (data.used_chains?.length > 1) score += 15;
-    
-    // Determine risk level
-    if (score >= 70) return { level: 'low', score };
-    if (score >= 40) return { level: 'medium', score };
-    return { level: 'high', score };
+
+    // GoPlus risk flags: add points for flagged indicators
+    const flags = data.riskFlags || {};
+    const flagBooleans = [
+      flags.is_blacklisted,
+      flags.is_sanctioned,
+      flags.is_scam,
+      flags.is_abnormal,
+      flags.is_dex_trader,
+      flags.is_phishing,
+    ];
+    const trueFlags = flagBooleans.filter((f) => f === true).length;
+    score += trueFlags * 10; // each critical flag adds 10
+
+    // Map to risk levels
+    if (score >= 60) return { level: 'high', score };
+    if (score >= 30) return { level: 'medium', score };
+    return { level: 'low', score };
   };
 
   const inspectWallet = async () => {
@@ -84,53 +105,32 @@ const WalletInspector = () => {
     setWalletData(null);
 
     try {
-      // Simulate API call to DeBank (replace with actual API when available)
-      const mockData = {
-        total_usd_value: Math.random() * 50000,
-        token_list: [
-          {
-            id: 'eth',
-            symbol: 'ETH',
-            name: 'Ethereum',
-            amount: Math.random() * 10,
-            price: 2000 + Math.random() * 1000,
-            logo_url: 'https://static.debank.com/image/coin/logo_url/eth/6460e1f1-e24b-4e5c-a9b9-c9bf3b7d7c3e.png'
-          },
-          {
-            id: 'usdc',
-            symbol: 'USDC',
-            name: 'USD Coin',
-            amount: Math.random() * 5000,
-            price: 1,
-            logo_url: 'https://static.debank.com/image/coin/logo_url/usdc/e87790bfe0b3f2ea855dc29069b38818.png'
-          }
-        ],
-        nft_list: [],
-        first_tx_date: new Date(Date.now() - Math.random() * 3 * 365 * 24 * 60 * 60 * 1000).toISOString(),
-        last_tx_date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-        used_chains: ['eth']
-      };
+      // Fetch real-time data
+      const raw: RawWalletData = await fetchWalletData(address, includeNFTs, chain);
+      const risk = calculateRiskLevel(raw);
 
-      const risk = calculateRiskLevel(mockData);
-      
+      const tokensProcessed = raw.token_holdings.map((t) => ({
+        symbol: t.symbol,
+        name: t.name,
+        balance: t.amount,
+        price: t.price,
+        valueUSD: Number((t.amount * (t.price || 0)).toFixed(2)),
+        logo: t.logo_url || '',
+      }));
+
+      const ethBalance = tokensProcessed.find((t) => t.symbol === 'ETH')?.balance || 0;
+
       const processedData: WalletData = {
         address,
-        balance: mockData.token_list.find(t => t.symbol === 'ETH')?.amount || 0,
-        balanceUSD: mockData.total_usd_value,
-        tokenCount: mockData.token_list.length,
-        nftCount: mockData.nft_list.length,
-        firstTransaction: mockData.first_tx_date,
-        lastTransaction: mockData.last_tx_date,
+        balance: ethBalance,
+        balanceUSD: raw.total_usd_value,
+        tokenCount: tokensProcessed.length,
+        nftCount: raw.nft_count || 0,
+        firstTransaction: raw.first_tx_date || '',
+        lastTransaction: raw.last_tx_date || '',
         riskLevel: risk.level,
         riskScore: risk.score,
-        tokens: mockData.token_list.map(token => ({
-          symbol: token.symbol,
-          name: token.name,
-          balance: token.amount,
-          price: token.price,
-          valueUSD: token.amount * token.price,
-          logo: token.logo_url
-        }))
+        tokens: tokensProcessed,
       };
 
       setWalletData(processedData);
@@ -141,8 +141,8 @@ const WalletInspector = () => {
           await supabase.from('token_scans').insert([{
             user_id: user.id, // Required - no more NULL values allowed
             address: address,
-            network: 'ethereum',
-            chain: 'ETH',
+            network: chain,
+            chain: chain === 'ethereum' ? 'ETH' : chain.toUpperCase(),
             risk: risk.level,
             result: processedData as any
           }]);
@@ -167,6 +167,7 @@ const WalletInspector = () => {
       });
 
     } catch (err) {
+      console.error('Wallet inspection error:', err);
       setError('Failed to inspect wallet. Please try again.');
       toast({
         title: 'Error',
@@ -251,12 +252,189 @@ const WalletInspector = () => {
                   )}
                 </Button>
               </div>
+          </CardContent>
+          </Card>
+
+          {/* Analysis Options */}
+          <Card className="border-border/50 bg-card/40 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Shield className="h-5 w-5 text-primary" />
+                Analysis Options
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Configure how the Wallet Inspector analyzes data. These inputs help tailor the inspection to your needs.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="chain">Network</Label>
+                  <select
+                    id="chain"
+                    value={chain}
+                    onChange={(e) => setChain(e.target.value as 'ethereum' | 'polygon' | 'bsc')}
+                    className="w-full rounded-md border border-border/50 bg-background/50 p-2"
+                  >
+                    <option value="ethereum">Ethereum (supported)</option>
+                    <option value="polygon" disabled>Polygon (coming soon)</option>
+                    <option value="bsc" disabled>BNB Smart Chain (coming soon)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="depth">Analysis Depth</Label>
+                  <select
+                    id="depth"
+                    value={analysisDepth}
+                    onChange={(e) => setAnalysisDepth(e.target.value as 'basic' | 'standard' | 'advanced')}
+                    className="w-full rounded-md border border-border/50 bg-background/50 p-2"
+                  >
+                    <option value="basic">Basic (fast)</option>
+                    <option value="standard">Standard (balanced)</option>
+                    <option value="advanced">Advanced (more checks)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="range">Transaction Window (days)</Label>
+                  <Input
+                    id="range"
+                    type="number"
+                    min={1}
+                    max={3650}
+                    value={dateRangeDays}
+                    onChange={(e) => setDateRangeDays(Number(e.target.value))}
+                    className="bg-background/50 border-border/50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="risk">Risk Focus</Label>
+                  <select
+                    id="risk"
+                    value={riskFocus}
+                    onChange={(e) => setRiskFocus(e.target.value as 'general' | 'scam' | 'privacy' | 'compliance')}
+                    className="w-full rounded-md border border-border/50 bg-background/50 p-2"
+                  >
+                    <option value="general">General</option>
+                    <option value="scam">Scam / Rug-pull indicators</option>
+                    <option value="privacy">Privacy risks</option>
+                    <option value="compliance">Compliance flags</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nfts">Include NFTs</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="nfts"
+                      type="checkbox"
+                      checked={includeNFTs}
+                      onChange={(e) => setIncludeNFTs(e.target.checked)}
+                      className="h-4 w-4 rounded border-border/50"
+                    />
+                    <span className="text-sm text-muted-foreground">Count NFTs in overview</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Note: Options refine the analysis UI today; backend validation for additional networks is rolling out.
+              </p>
             </CardContent>
           </Card>
+
+          {/* About & Highlights */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="border-border/50 bg-card/40 backdrop-blur-sm lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Search className="h-5 w-5 text-primary" />
+                  About Wallet Inspector
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  Wallet Inspector helps you understand on-chain activity for any Ethereum address. It summarizes balances, token holdings, activity timelines, and provides a lightweight risk assessment to help you gauge trust and exposure.
+                </p>
+                <p>
+                  Use this tool when evaluating counterparties, investigating suspicious activity, or doing due diligence on wallets interacting with your smart contracts.
+                </p>
+                <p>
+                  Your privacy matters: we do not store raw wallet inputs beyond necessary usage analytics. Results are generated on-demand.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50 bg-card/40 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <CheckCircle className="h-5 w-5 text-primary" />
+                  Feature Highlights
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Shield className="h-4 w-4 text-primary mt-0.5" />
+                    <div>
+                      <p className="font-medium">Risk Scoring</p>
+                      <p className="text-sm text-muted-foreground">Simple, explainable indicators for wallet maturity, diversity and chain usage.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Coins className="h-4 w-4 text-primary mt-0.5" />
+                    <div>
+                      <p className="font-medium">Token Breakdown</p>
+                      <p className="text-sm text-muted-foreground">Holdings and USD value estimates with per-token details.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-4 w-4 text-primary mt-0.5" />
+                    <div>
+                      <p className="font-medium">Activity Timeline</p>
+                      <p className="text-sm text-muted-foreground">First and recent transactions to quickly gauge wallet history.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-4 w-4 text-primary mt-0.5" />
+                    <div>
+                      <p className="font-medium">Flag Indicators</p>
+                      <p className="text-sm text-muted-foreground">Potential red flags based on common scam and risk patterns.</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Results */}
           {walletData && (
             <div className="space-y-6">
+              {/* Applied Options Summary */}
+              <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Applied Analysis Options</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Network</p>
+                    <p className="font-medium capitalize">{chain}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Depth</p>
+                    <p className="font-medium capitalize">{analysisDepth}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Window</p>
+                    <p className="font-medium">{dateRangeDays} days</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Include NFTs</p>
+                    <p className="font-medium">{includeNFTs ? 'Yes' : 'No'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-muted-foreground">Risk Focus</p>
+                    <p className="font-medium capitalize">{riskFocus}</p>
+                  </div>
+                </CardContent>
+              </Card>
               {/* Wallet Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="border-border/50 bg-card/50 backdrop-blur-sm">

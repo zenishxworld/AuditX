@@ -82,70 +82,68 @@ const Dashboard = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
-      fetchDashboardData();
-    }
+    let mounted = true;
+    const run = async () => {
+      if (user) {
+        await fetchDashboardData();
+      }
+    };
+    run();
+    return () => { mounted = false; };
   }, [user]);
 
   const fetchDashboardData = async () => {
     if (!user) return;
-    
     setLoading(true);
     try {
-      // Fetch audits
-      const { data: auditsData, error: auditsError } = await supabase
-        .from('audit_reports')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      const [auditsRes, tokensRes, chatsRes, planType] = await Promise.all([
+        supabase
+          .from('audit_reports')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('token_scans')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('chats')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        getUserPlan(user.id),
+      ]);
 
-      if (auditsError) throw auditsError;
+      if (auditsRes.error) throw auditsRes.error;
+      if (tokensRes.error) throw tokensRes.error;
+      if (chatsRes.error) throw chatsRes.error;
 
-      // Fetch token scans
-      const { data: tokensData, error: tokensError } = await supabase
-        .from('token_scans')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      const auditsData = auditsRes.data || [];
+      const tokensData = tokensRes.data || [];
+      const chatsData = chatsRes.data || [];
 
-      if (tokensError) throw tokensError;
-
-      // Fetch chats
-      const { data: chatsData, error: chatsError } = await supabase
-        .from('chats')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (chatsError) throw chatsError;
-
-      // Get user's subscription plan
-      const planType = await getUserPlan(user.id);
-
-      setAudits(auditsData || []);
-      setTokens(tokensData || []);
-      setChats(chatsData || []);
-
-      // Calculate stats
       const totalChatMessages = (chatsData || []).reduce((sum, chat) => sum + chat.message_count, 0);
-      const avgScore = auditsData?.length 
-        ? auditsData.reduce((sum, audit) => sum + (audit.score || 0), 0) / auditsData.length 
+      const avgScore = auditsData.length
+        ? auditsData.reduce((sum, audit) => sum + (audit.score || 0), 0) / auditsData.length
         : 0;
 
+      setAudits(auditsData);
+      setTokens(tokensData);
+      setChats(chatsData);
       setStats({
-        totalAudits: auditsData?.length || 0,
-        tokensScanned: tokensData?.length || 0,
+        totalAudits: auditsData.length,
+        tokensScanned: tokensData.length,
         chatMessages: totalChatMessages,
         avgScore: Math.round(avgScore * 10) / 10,
-        planType
+        planType,
       });
-
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       toast({
-        title: "Error",
-        description: "Failed to load dashboard data. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to load dashboard data. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
