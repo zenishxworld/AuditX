@@ -24,7 +24,7 @@ export type Database = {
           report_url: string | null
           score: number | null
           updated_at: string
-          user_id: string | null
+          user_id: string
           vulnerabilities: Json | null
         }
         Insert: {
@@ -36,7 +36,7 @@ export type Database = {
           report_url?: string | null
           score?: number | null
           updated_at?: string
-          user_id?: string | null
+          user_id: string
           vulnerabilities?: Json | null
         }
         Update: {
@@ -48,38 +48,8 @@ export type Database = {
           report_url?: string | null
           score?: number | null
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
           vulnerabilities?: Json | null
-        }
-        Relationships: []
-      }
-      chats: {
-        Row: {
-          created_at: string
-          id: string
-          message_count: number
-          status: string
-          topic: string
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          message_count?: number
-          status?: string
-          topic: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          message_count?: number
-          status?: string
-          topic?: string
-          updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
@@ -133,6 +103,60 @@ export type Database = {
           risk?: string | null
           token_name?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          plan_type: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_type: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_type?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      wallet_inspections: {
+        Row: {
+          address: string
+          chain: string | null
+          created_at: string
+          id: string
+          risk_level: string | null
+          risk_score: number | null
+          user_id: string
+        }
+        Insert: {
+          address: string
+          chain?: string | null
+          created_at?: string
+          id?: string
+          risk_level?: string | null
+          risk_score?: number | null
+          user_id: string
+        }
+        Update: {
+          address?: string
+          chain?: string | null
+          created_at?: string
+          id?: string
+          risk_level?: string | null
+          risk_score?: number | null
           user_id?: string
         }
         Relationships: []
