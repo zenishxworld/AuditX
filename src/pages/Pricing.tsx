@@ -33,8 +33,8 @@ const Pricing = () => {
       description: 'Perfect for getting started',
       features: [
         { name: '5 contract audits per month', included: true },
-        { name: 'Basic security analysis', included: true },
         { name: '3 token scans per month', included: true },
+        { name: '5 wallet inspections per month', included: true },
         { name: 'Community support', included: true },
         { name: 'PDF reports', included: false },
         { name: 'Premium features', included: false },
@@ -51,7 +51,7 @@ const Pricing = () => {
       description: 'For serious developers',
       features: [
         { name: '50 contract audits per month', included: true },
-        { name: 'Advanced security analysis', included: true },
+        { name: '50 wallet inspections per month', included: true },
         { name: '50 token scans per month', included: true },
         { name: 'PDF report downloads', included: true },
         { name: 'Gas optimization tips', included: true },
@@ -69,7 +69,7 @@ const Pricing = () => {
       description: 'For teams and enterprises',
       features: [
         { name: 'Unlimited contract audits', included: true },
-        { name: 'Enterprise-grade analysis', included: true },
+        { name: 'Unlimited wallet inspections', included: true },
         { name: 'Unlimited token scans', included: true },
         { name: 'Custom PDF reports', included: true },
         { name: 'Gas Optimization Tips', included: true },
@@ -97,9 +97,10 @@ const Pricing = () => {
     setIsProcessing(true);
 
     try {
-      // Since the user_subscriptions table doesn't exist yet in the database,
-      // we'll use localStorage as a temporary solution
-      localStorage.setItem('userPlanType', planName);
+      // Temporary approach until user_subscriptions table exists:
+      // store plan per-user to prevent cross-user leakage of Premium/Pro
+      const key = `userPlanType:${user.id}`;
+      localStorage.setItem(key, planName);
       
       // Simulate payment processing
       setTimeout(() => {

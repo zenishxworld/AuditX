@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWalletData, type RawWalletData } from '@/lib/fetchWalletData';
+import { getUserPlan, getWalletInspectorUsage, isOverWalletInspectorLimit } from '@/lib/planLimits';
 
 interface WalletData {
   address: string;
@@ -98,6 +99,20 @@ const WalletInspector = () => {
     if (!validateEthereumAddress(address)) {
       setError('Please enter a valid Ethereum address');
       return;
+    }
+
+    // Enforce monthly wallet inspector limits per plan
+    if (user) {
+      const planType = await getUserPlan(user.id);
+      const usageCount = await getWalletInspectorUsage(user.id);
+      if (isOverWalletInspectorLimit(usageCount, planType)) {
+        toast({
+          title: 'Monthly Limit Reached',
+          description: `You have reached your ${planType} plan wallet inspections limit for this month.`,
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     setIsLoading(true);

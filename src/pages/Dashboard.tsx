@@ -96,6 +96,7 @@ const Dashboard = () => {
     return () => { mounted = false; };
   }, [user]);
 
+  // fetchDashboardData()
   const fetchDashboardData = async () => {
     if (!user) return;
     setLoading(true);
@@ -126,7 +127,16 @@ const Dashboard = () => {
       const tokensData = tokensRes.data || [];
       const walletData = (walletRes as any)?.error ? [] : (walletRes as any)?.data || [];
       // Attempt to fetch wallet inspector history if table exists
-      const walletInspectionsCount = Array.isArray(walletData) ? walletData.length : 0;
+      // Count wallet inspections for current month
+      const now = new Date();
+      const month = now.getMonth();
+      const year = now.getFullYear();
+      const walletInspectionsCount = Array.isArray(walletData)
+        ? walletData.filter((wi: any) => {
+            const d = new Date(wi.created_at);
+            return d.getMonth() === month && d.getFullYear() === year;
+          }).length
+        : 0;
       const avgScore = auditsData.length
         ? auditsData.reduce((sum, audit) => sum + (audit.score || 0), 0) / auditsData.length
         : 0;
@@ -309,7 +319,7 @@ const Dashboard = () => {
                   <p className="text-sm text-muted-foreground">Inspected Wallet</p>
                   <p className="text-2xl font-bold text-primary">{stats.walletInspector}</p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-primary" />
+                <Wallet className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
@@ -449,7 +459,7 @@ const Dashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Wallet className="h-5 w-5 text-primary" />
-                  <span>Wallet Inspector</span>
+                  <span>Inspectced Wallets</span>
                 </CardTitle>
                 <CardDescription>
                   Inspect any Ethereum wallet’s risk, holdings, and activity.
@@ -457,13 +467,13 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  <p className="text-sm text-muted-foreground">
+                  {/* <p className="text-sm text-muted-foreground">
                     Launch the full Wallet Inspector tool to analyze addresses in depth.
-                  </p>
-                  <Button className="w-fit" variant="outline" onClick={() => window.location.assign('/wallet-inspector')}>
+                  </p> */}
+                  {/* <Button className="w-fit" variant="outline" onClick={() => window.location.assign('/wallet-inspector')}>
                     <Eye className="h-4 w-4 mr-2" />
                     Open Wallet Inspector
-                  </Button>
+                  </Button> */}
                   <div className="space-y-4">
                     <h3 className="font-medium">Recent Wallet Inspections</h3>
                     {walletInspections.length === 0 ? (
@@ -528,6 +538,10 @@ const Dashboard = () => {
                           <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
                           <span>3 token scans per month</span>
                         </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span>5 wallet inspections per month</span>
+                        </div>
                         
                       </>
                     )}
@@ -541,11 +555,11 @@ const Dashboard = () => {
                           <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
                           <span>50 token scans per month</span>
                         </div>
-                        
                         <div className="flex items-center">
                           <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                          <span>Priority support</span>
+                          <span>50 wallet inspections per month</span>
                         </div>
+                       
                       </>
                     )}
                     {stats.planType === 'Premium' && (
@@ -558,11 +572,11 @@ const Dashboard = () => {
                           <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
                           <span>Unlimited token scans</span>
                         </div>
-                        
                         <div className="flex items-center">
                           <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                          <span>Dedicated support</span>
+                          <span>Unlimited wallet inspections</span>
                         </div>
+                        
                       </>
                     )}
                   </div>
@@ -593,27 +607,48 @@ const Dashboard = () => {
                         />
                       )}
                     </div>
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <span>Token Scans</span>
-                        {stats.planType === 'Premium' ? (
-                          <span>{stats.tokensScanned} / <Infinity className="h-4 w-4 inline" /></span>
-                        ) : (
-                          <span>
-                            {stats.tokensScanned} / {stats.planType === 'Pro' ? PRO_LIMITS.tokens : FREE_LIMITS.tokens}
-                          </span>
-                        )}
-                      </div>
-                      {stats.planType !== 'Premium' && (
-                        <Progress 
-                          value={stats.planType === 'Pro' 
-                            ? (stats.tokensScanned / PRO_LIMITS.tokens) * 100 
-                            : (stats.tokensScanned / FREE_LIMITS.tokens) * 100
-                          } 
-                          className="h-2" 
-                        />
-                      )}
-                    </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>Token Scans</span>
+                    {stats.planType === 'Premium' ? (
+                      <span>{stats.tokensScanned} / <Infinity className="h-4 w-4 inline" /></span>
+                    ) : (
+                      <span>
+                        {stats.tokensScanned} / {stats.planType === 'Pro' ? PRO_LIMITS.tokens : FREE_LIMITS.tokens}
+                      </span>
+                    )}
+                  </div>
+                  {stats.planType !== 'Premium' && (
+                    <Progress 
+                      value={stats.planType === 'Pro' 
+                        ? (stats.tokensScanned / PRO_LIMITS.tokens) * 100 
+                        : (stats.tokensScanned / FREE_LIMITS.tokens) * 100
+                      } 
+                      className="h-2" 
+                    />
+                  )}
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>Wallet Inspections</span>
+                    {stats.planType === 'Premium' ? (
+                      <span>{stats.walletInspector} / <Infinity className="h-4 w-4 inline" /></span>
+                    ) : (
+                      <span>
+                        {stats.walletInspector} / {stats.planType === 'Pro' ? PRO_LIMITS.walletInspections : FREE_LIMITS.walletInspections}
+                      </span>
+                    )}
+                  </div>
+                  {stats.planType !== 'Premium' && (
+                    <Progress 
+                      value={stats.planType === 'Pro' 
+                        ? (stats.walletInspector / PRO_LIMITS.walletInspections) * 100 
+                        : (stats.walletInspector / FREE_LIMITS.walletInspections) * 100
+                      } 
+                      className="h-2" 
+                    />
+                  )}
+                </div>
                     
                   </div>
                 </div>

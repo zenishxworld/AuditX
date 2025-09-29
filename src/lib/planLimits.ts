@@ -3,16 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 export const FREE_LIMITS = {
   audits: 5,
   tokens: 3,
+  walletInspections: 5,
 };
 
 export const PRO_LIMITS = {
   audits: 50,
   tokens: 50,
+  walletInspections: 50,
 };
 
 export const PREMIUM_LIMITS = {
   audits: Infinity,
   tokens: Infinity,
+  walletInspections: Infinity,
 };
 
 export type PlanType = 'Free' | 'Pro' | 'Premium';
@@ -29,16 +32,25 @@ export const getPlanLimits = (planType: PlanType) => {
 };
 
 export async function getUserPlan(userId: string): Promise<PlanType> {
-  // Use localStorage as a temporary solution until the user_subscriptions table is created
-  const storedPlanType = localStorage.getItem('userPlanType');
-  
-  console.log('Retrieved plan type from localStorage:', storedPlanType);
-  
-  // Validate that the stored plan type is a valid PlanType
-  if (storedPlanType === 'Pro' || storedPlanType === 'Premium') {
-    return storedPlanType;
+  // Temporary storage until user_subscriptions table exists
+  // Use a per-user namespaced key to avoid leaking plan across different users
+  const namespacedKey = `userPlanType:${userId}`;
+  const storedPlanType = localStorage.getItem(namespacedKey);
+
+  // Backward compatibility: migrate legacy global key if present
+  const legacyKey = localStorage.getItem('userPlanType');
+  if (!storedPlanType && (legacyKey === 'Pro' || legacyKey === 'Premium' || legacyKey === 'Free')) {
+    localStorage.setItem(namespacedKey, legacyKey);
+    localStorage.removeItem('userPlanType');
+    return legacyKey as PlanType;
   }
-  
+
+  // Validate stored plan
+  if (storedPlanType === 'Pro' || storedPlanType === 'Premium' || storedPlanType === 'Free') {
+    return storedPlanType as PlanType;
+  }
+
+  // Default for new users
   return 'Free';
 }
 
@@ -77,4 +89,28 @@ export function isOverFreeLimit(usage: { audits: number; tokens: number }) {
 // For backward compatibility
 export async function getFreePlanUsage(userId: string) {
   return getUserUsage(userId);
+}
+
+// Wallet Inspector monthly usage and limits
+export async function getWalletInspectorUsage(userId: string): Promise<number> {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startIso = startOfMonth.toISOString();
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const nextIso = nextMonth.toISOString();
+
+  const { count } = await supabase
+    .from('wallet_inspections')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', startIso)
+    .lt('created_at', nextIso);
+
+  return count || 0;
+}
+
+export function isOverWalletInspectorLimit(usageCount: number, planType: PlanType): boolean {
+  const limits = getPlanLimits(planType);
+  const limit = limits.walletInspections;
+  return limit !== Infinity && usageCount >= limit;
 }

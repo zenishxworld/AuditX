@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { getUserPlan, getUserUsage, isOverLimit, PlanType } from '@/lib/planLimits';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useNavigate } from 'react-router-dom';
 
 interface TokenData {
   chainId?: string;
@@ -94,6 +95,7 @@ interface AnalysisResult {
 }
 
 const Scanner = () => {
+  const navigate = useNavigate();
   const [tokenAddress, setTokenAddress] = useState('0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE');
   const [selectedChain, setSelectedChain] = useState('bsc');
   const [isScanning, setIsScanning] = useState(false);
@@ -654,7 +656,7 @@ const Scanner = () => {
               Upgrade your plan to continue using this feature.
             </DialogDescription>
           </DialogHeader>
-          <Button onClick={() => {/* navigate to pricing */}}>Upgrade Now</Button>
+          <Button onClick={() => navigate('/pricing')}>Upgrade Now</Button>
         </DialogContent>
       </Dialog>
     </div>
