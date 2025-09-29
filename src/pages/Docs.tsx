@@ -224,15 +224,20 @@ const Docs = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
-                  <Code className="h-4 w-4 mr-2" />
-                  API Documentation
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
+                
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => window.open('https://docs.google.com/document/d/1090Ay3LcHpJ37EypIKfgZFO-KGhn3M1wTUhE8g8j2YY/edit?usp=sharing', '_blank')}
+                >
                   <FileText className="h-4 w-4 mr-2" />
                   Sample Contracts
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => window.open('https://docs.google.com/document/d/1CAJ6D91mWLor_hEmjN144wplxK_4J_0c3vYWYT6GzWw/edit?usp=sharing', '_blank')}
+                >
                   <Shield className="h-4 w-4 mr-2" />
                   Security Guidelines
                 </Button>
