@@ -153,15 +153,13 @@ const WalletInspector = () => {
       // Save to database if user is logged in (required for security)
       if (user) {
         try {
-          await supabase.from('wallet_inspections').insert([
-            {
-              user_id: user.id,
-              address: address,
-              chain: chain,
-              risk_level: processedData.riskLevel,
-              risk_score: processedData.riskScore,
-            }
-          ]);
+          await supabase.from('wallet_inspections').insert({
+            user_id: user.id,
+            address: address,
+            chain: chain || null,
+            risk_level: processedData.riskLevel || null,
+            risk_score: processedData.riskScore || null,
+          });
           
           toast({
             title: 'Wallet Scan Saved',

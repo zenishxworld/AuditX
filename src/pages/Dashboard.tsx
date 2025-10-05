@@ -114,7 +114,7 @@ const Dashboard = () => {
           .order('created_at', { ascending: false }),
         supabase
           .from('wallet_inspections')
-          .select('*')
+          .select('id, user_id, address, chain, risk_level, risk_score, created_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         getUserPlan(user.id),

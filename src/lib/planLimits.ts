@@ -101,7 +101,7 @@ export async function getWalletInspectorUsage(userId: string): Promise<number> {
 
   const { count } = await supabase
     .from('wallet_inspections')
-    .select('*', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
     .gte('created_at', startIso)
     .lt('created_at', nextIso);
