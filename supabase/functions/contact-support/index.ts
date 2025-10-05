@@ -16,7 +16,7 @@ function isValidEmail(email: string) {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, content-type, apikey',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Expose-Headers': 'X-Request-Id',
   'Content-Type': 'application/json'
