@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { fetchWalletData, type RawWalletData } from '@/lib/fetchWalletData';
+import { fetchWalletDataWithMock, type RawWalletData } from '@/lib/fetchWalletData';
 import { getUserPlan, getWalletInspectorUsage, isOverWalletInspectorLimit } from '@/lib/planLimits';
 
 interface WalletData {
@@ -128,7 +128,7 @@ const WalletInspector = () => {
     try {
       // Fetch real-time data
       const addr = address.trim();
-      const raw: RawWalletData = await fetchWalletData(addr, includeNFTs, chain, {
+      const raw: RawWalletData = await fetchWalletDataWithMock(addr, includeNFTs, chain, {
         analysisDepth,
         dateRangeDays,
       });

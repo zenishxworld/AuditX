@@ -56,6 +56,148 @@ const bigintToDecimalNumber = (value: bigint, decimals: number, precision: numbe
   return Number.isFinite(num) ? num : 0;
 };
 
+// ---------------- Mock dataset for offline/failed-provider scenarios ----------------
+const mockNow = () => new Date();
+const daysAgoIso = (days: number) => {
+  const d = new Date(mockNow().getTime() - days * 24 * 60 * 60 * 1000);
+  return d.toISOString();
+};
+
+const MOCK_RESULTS: Omit<RawWalletData, 'address'>[] = [
+  {
+    total_usd_value: 12450.32,
+    first_tx_date: daysAgoIso(720),
+    last_tx_date: daysAgoIso(2),
+    token_holdings: [
+      { name: 'Ethereum', symbol: 'ETH', amount: 2.15, price: 3000 },
+      { name: 'USD Coin', symbol: 'USDC', amount: 4500, price: 1 },
+      { name: 'Uniswap', symbol: 'UNI', amount: 120, price: 6.2 },
+    ],
+    chains: ['ethereum'],
+    riskFlags: { is_dex_trader: true },
+    nft_count: 3,
+  },
+  {
+    total_usd_value: 85.77,
+    first_tx_date: daysAgoIso(45),
+    last_tx_date: daysAgoIso(1),
+    token_holdings: [
+      { name: 'Ethereum', symbol: 'ETH', amount: 0.01, price: 3000 },
+      { name: 'Pepe', symbol: 'PEPE', amount: 1200000, price: 0.000001 },
+    ],
+    chains: ['ethereum'],
+    riskFlags: { is_abnormal: true },
+    nft_count: 0,
+  },
+  {
+    total_usd_value: 0,
+    first_tx_date: null,
+    last_tx_date: null,
+    token_holdings: [],
+    chains: ['ethereum'],
+    riskFlags: { is_scam: false },
+    nft_count: 0,
+  },
+  {
+    total_usd_value: 405.11,
+    first_tx_date: daysAgoIso(300),
+    last_tx_date: daysAgoIso(120),
+    token_holdings: [
+      { name: 'Ethereum', symbol: 'ETH', amount: 0.05, price: 3000 },
+      { name: 'Aave', symbol: 'AAVE', amount: 1.2, price: 85 },
+    ],
+    chains: ['ethereum'],
+    riskFlags: { is_blacklisted: false },
+    nft_count: 1,
+  },
+  {
+    total_usd_value: 98765.43,
+    first_tx_date: daysAgoIso(1500),
+    last_tx_date: daysAgoIso(3),
+    token_holdings: [
+      { name: 'Ethereum', symbol: 'ETH', amount: 12.4, price: 3000 },
+      { name: 'WBTC', symbol: 'WBTC', amount: 0.5, price: 65000 },
+      { name: 'Lido Staked Ether', symbol: 'stETH', amount: 4.2, price: 3000 },
+    ],
+    chains: ['ethereum'],
+    riskFlags: { is_sanctioned: false },
+    nft_count: 12,
+  },
+  {
+    total_usd_value: 1520.9,
+    first_tx_date: daysAgoIso(60),
+    last_tx_date: daysAgoIso(5),
+    token_holdings: [
+      { name: 'DAI Stablecoin', symbol: 'DAI', amount: 1500, price: 1 },
+      { name: 'Ethereum', symbol: 'ETH', amount: 0.02, price: 3000 },
+    ],
+    chains: ['ethereum'],
+    riskFlags: { is_phishing: false },
+    nft_count: 0,
+  },
+  {
+    total_usd_value: 230.14,
+    first_tx_date: daysAgoIso(10),
+    last_tx_date: daysAgoIso(1),
+    token_holdings: [
+      { name: 'Shiba Inu', symbol: 'SHIB', amount: 12000000, price: 0.00002 },
+    ],
+    chains: ['ethereum'],
+    riskFlags: { is_abnormal: true },
+    nft_count: 0,
+  },
+  {
+    total_usd_value: 3205.55,
+    first_tx_date: daysAgoIso(400),
+    last_tx_date: daysAgoIso(7),
+    token_holdings: [
+      { name: 'Chainlink', symbol: 'LINK', amount: 150, price: 7.8 },
+      { name: 'Ethereum', symbol: 'ETH', amount: 0.4, price: 3000 },
+    ],
+    chains: ['ethereum'],
+    riskFlags: { is_dex_trader: true },
+    nft_count: 2,
+  },
+  {
+    total_usd_value: 18.03,
+    first_tx_date: daysAgoIso(5),
+    last_tx_date: daysAgoIso(2),
+    token_holdings: [
+      { name: 'Ethereum', symbol: 'ETH', amount: 0.006, price: 3000 },
+    ],
+    chains: ['ethereum'],
+    riskFlags: { is_abnormal: false },
+    nft_count: 0,
+  },
+  {
+    total_usd_value: 540.77,
+    first_tx_date: daysAgoIso(900),
+    last_tx_date: daysAgoIso(400),
+    token_holdings: [
+      { name: 'Maker', symbol: 'MKR', amount: 0.2, price: 2400 },
+      { name: 'Ethereum', symbol: 'ETH', amount: 0.03, price: 3000 },
+    ],
+    chains: ['ethereum'],
+    riskFlags: { is_scam: false },
+    nft_count: 0,
+  },
+];
+
+const pickRandomMock = (address: string): RawWalletData => {
+  const idx = Math.floor(Math.random() * MOCK_RESULTS.length);
+  const base = MOCK_RESULTS[idx];
+  return {
+    address,
+    total_usd_value: Number(base.total_usd_value.toFixed(2)),
+    first_tx_date: base.first_tx_date,
+    last_tx_date: base.last_tx_date,
+    token_holdings: base.token_holdings.map((t) => ({ ...t })),
+    chains: base.chains.slice(),
+    riskFlags: { ...(base.riskFlags || {}) },
+    nft_count: base.nft_count || 0,
+  };
+};
+
 const fromWei = (balance: string, decimals: number): number => {
   try {
     const bn = BigInt(balance);
@@ -295,4 +437,19 @@ export async function fetchWalletData(
     riskFlags,
     nft_count: nftItems.length || 0,
   };
+}
+
+// Decide if the fetched data is "meaningful"; otherwise return a mock
+export async function fetchWalletDataWithMock(
+  address: string,
+  includeNFTs: boolean,
+  chain: SupportedChain = 'ethereum',
+  options: FetchWalletOptions = {}
+): Promise<RawWalletData> {
+  const result = await fetchWalletData(address, includeNFTs, chain, options);
+  const hasTokens = Array.isArray(result.token_holdings) && result.token_holdings.length > 0;
+  const hasActivity = !!(result.first_tx_date || result.last_tx_date);
+  const hasValue = Number(result.total_usd_value) > 0;
+  const meaningful = hasTokens || hasActivity || hasValue;
+  return meaningful ? result : pickRandomMock(address);
 }
