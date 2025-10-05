@@ -44,6 +44,18 @@ const toNumberSafe = (v: any, fallback = 0): number => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+// Convert a bigint amount with given decimals to a JS number using string math to preserve scale
+const bigintToDecimalNumber = (value: bigint, decimals: number, precision: number = 8): number => {
+  if (decimals <= 0) return Number(value);
+  const base = BigInt(10) ** BigInt(decimals);
+  const integer = value / base;
+  const fraction = value % base;
+  const fractionStr = fraction.toString().padStart(decimals, '0').slice(0, precision);
+  const composed = fractionStr.length > 0 ? `${integer.toString()}.${fractionStr}` : integer.toString();
+  const num = parseFloat(composed);
+  return Number.isFinite(num) ? num : 0;
+};
+
 const fromWei = (balance: string, decimals: number): number => {
   try {
     const bn = BigInt(balance);
@@ -212,6 +224,51 @@ export async function fetchWalletData(
       }
     } catch {
       // ignore etherscan fallback
+    }
+  }
+
+  // 5) Ultimate fallback without API keys: use public RPC for ETH balance and CoinGecko for ETH price
+  if ((!token_holdings || token_holdings.length === 0) && chain === 'ethereum') {
+    try {
+      // Cloudflare public Ethereum RPC
+      const rpcRes = await fetch('https://cloudflare-eth.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getBalance', params: [address, 'latest'] }),
+      });
+      if (rpcRes.ok) {
+        const rpcJson = await rpcRes.json();
+        const hexBalance = (rpcJson?.result as string) || '0x0';
+        const wei = BigInt(hexBalance);
+        const ethAmount = bigintToDecimalNumber(wei, 18, 8);
+        token_holdings = [
+          {
+            name: 'Ethereum',
+            symbol: 'ETH',
+            amount: Number.isFinite(ethAmount) ? ethAmount : 0,
+            price: 0,
+          },
+        ];
+
+        // Try to fetch ETH USD price
+        try {
+          const priceRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+          if (priceRes.ok) {
+            const priceJson = await priceRes.json();
+            const ethUsd = toNumberSafe(priceJson?.ethereum?.usd, 0);
+            token_holdings = token_holdings.map((t) => ({ ...t, price: t.symbol === 'ETH' ? ethUsd : t.price }));
+          }
+        } catch {
+          // ignore price fetch failure
+        }
+
+        // Compute total if still zero
+        if (!total_usd_value) {
+          total_usd_value = token_holdings.reduce((sum, t) => sum + (t.amount * (t.price || 0)), 0);
+        }
+      }
+    } catch {
+      // last-resort fallback failed; leave as-is
     }
   }
 

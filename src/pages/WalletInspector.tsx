@@ -50,7 +50,8 @@ const WalletInspector = () => {
   const [riskFocus, setRiskFocus] = useState<'general' | 'scam' | 'privacy' | 'compliance'>('general');
 
   const validateEthereumAddress = (addr: string): boolean => {
-    return /^0x[a-fA-F0-9]{40}$/.test(addr);
+    const trimmed = (addr || '').trim();
+    return /^0x[a-fA-F0-9]{40}$/.test(trimmed);
   };
 
   const calculateRiskLevel = (data: RawWalletData): { level: 'low' | 'medium' | 'high', score: number } => {
@@ -78,13 +79,14 @@ const WalletInspector = () => {
 
     // GoPlus risk flags: add points for flagged indicators
     const flags = data.riskFlags || {};
+    const toBool = (v: unknown) => v === true || v === 1 || v === '1' || v === 'true' || v === 'TRUE';
     const flagBooleans = [
-      flags.is_blacklisted,
-      flags.is_sanctioned,
-      flags.is_scam,
-      flags.is_abnormal,
-      flags.is_dex_trader,
-      flags.is_phishing,
+      toBool(flags.is_blacklisted),
+      toBool(flags.is_sanctioned),
+      toBool(flags.is_scam),
+      toBool(flags.is_abnormal),
+      toBool(flags.is_dex_trader),
+      toBool(flags.is_phishing),
     ];
     const trueFlags = flagBooleans.filter((f) => f === true).length;
     score += trueFlags * 10; // each critical flag adds 10
@@ -121,7 +123,8 @@ const WalletInspector = () => {
 
     try {
       // Fetch real-time data
-      const raw: RawWalletData = await fetchWalletData(address, includeNFTs, chain);
+      const addr = address.trim();
+      const raw: RawWalletData = await fetchWalletData(addr, includeNFTs, chain);
       const risk = calculateRiskLevel(raw);
 
       const tokensProcessed = raw.token_holdings.map((t) => ({
@@ -133,10 +136,10 @@ const WalletInspector = () => {
         logo: t.logo_url || '',
       }));
 
-      const ethBalance = tokensProcessed.find((t) => t.symbol === 'ETH')?.balance || 0;
+      const ethBalance = tokensProcessed.find((t) => t.symbol?.toUpperCase() === 'ETH')?.balance || 0;
 
       const processedData: WalletData = {
-        address,
+        address: addr,
         balance: ethBalance,
         balanceUSD: raw.total_usd_value,
         tokenCount: tokensProcessed.length,
@@ -155,7 +158,7 @@ const WalletInspector = () => {
         try {
           await supabase.from('wallet_inspections').insert({
             user_id: user.id,
-            address: address,
+            address: addr,
             chain: chain || null,
             risk_level: processedData.riskLevel || null,
             risk_score: processedData.riskScore || null,
@@ -212,7 +215,9 @@ const WalletInspector = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    if (!dateString) return 'N/A';
+    const d = new Date(dateString);
+    return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString();
   };
 
   const formatAddress = (addr: string) => {
