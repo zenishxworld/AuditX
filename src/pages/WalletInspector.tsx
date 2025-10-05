@@ -67,15 +67,18 @@ const WalletInspector = () => {
     else if (ageInDays < 30) score += 20;
     else if (ageInDays < 90) score += 10;
 
-    // Balance factor: low balances are riskier
+    // Balance factor: low balances are riskier, weight depends on risk focus
     const total = data.total_usd_value || 0;
-    if (total < 100) score += 20;
-    else if (total < 1000) score += 10;
+    const balanceWeight = riskFocus === 'compliance' ? 10 : riskFocus === 'privacy' ? 10 : riskFocus === 'scam' ? 15 : 20;
+    if (total < 100) score += balanceWeight;
+    else if (total < 1000) score += Math.floor(balanceWeight / 2);
 
-    // Token diversity: fewer tokens increases risk
+    // Token diversity: fewer tokens increases risk; lower weight for privacy focus
     const tokenCount = data.token_holdings?.length || 0;
-    if (tokenCount <= 2) score += 25;
-    else if (tokenCount <= 5) score += 15;
+    const diversityHigh = riskFocus === 'privacy' ? 15 : 25;
+    const diversityMed = riskFocus === 'privacy' ? 8 : 15;
+    if (tokenCount <= 2) score += diversityHigh;
+    else if (tokenCount <= 5) score += diversityMed;
 
     // GoPlus risk flags: add points for flagged indicators
     const flags = data.riskFlags || {};
@@ -89,7 +92,8 @@ const WalletInspector = () => {
       toBool(flags.is_phishing),
     ];
     const trueFlags = flagBooleans.filter((f) => f === true).length;
-    score += trueFlags * 10; // each critical flag adds 10
+    const perFlag = riskFocus === 'compliance' ? 15 : riskFocus === 'scam' ? 12 : 10;
+    score += trueFlags * perFlag; // focus-weighted flags
 
     // Map to risk levels
     if (score >= 60) return { level: 'high', score };
@@ -124,7 +128,10 @@ const WalletInspector = () => {
     try {
       // Fetch real-time data
       const addr = address.trim();
-      const raw: RawWalletData = await fetchWalletData(addr, includeNFTs, chain);
+      const raw: RawWalletData = await fetchWalletData(addr, includeNFTs, chain, {
+        analysisDepth,
+        dateRangeDays,
+      });
       const risk = calculateRiskLevel(raw);
 
       const tokensProcessed = raw.token_holdings.map((t) => ({

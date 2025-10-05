@@ -67,13 +67,22 @@ const fromWei = (balance: string, decimals: number): number => {
   }
 };
 
+export interface FetchWalletOptions {
+  analysisDepth?: 'basic' | 'standard' | 'advanced';
+  dateRangeDays?: number; // for filtering tx dates
+}
+
 export async function fetchWalletData(
   address: string,
   includeNFTs: boolean,
-  chain: SupportedChain = 'ethereum'
+  chain: SupportedChain = 'ethereum',
+  options: FetchWalletOptions = {}
 ): Promise<RawWalletData> {
   const covalentChain = chainToCovalentPath[chain];
   const goPlusChainId = chainToGoPlusId[chain];
+  const depth = options.analysisDepth || 'standard';
+  const txPageSize = depth === 'basic' ? 25 : depth === 'advanced' ? 250 : 100;
+  const dateWindowDays = Math.max(1, Math.min(3650, options.dateRangeDays || 90));
 
   // 1) Fetch balances (gracefully fallback if Covalent fails)
   let nftItems: any[] = [];
@@ -161,12 +170,16 @@ export async function fetchWalletData(
   let last_tx_date: string | null = null;
   if (COVALENT_API_KEY) {
     try {
-      const txUrl = `https://api.covalenthq.com/v1/${covalentChain}/address/${address}/transactions_v3/?page-size=100&key=${COVALENT_API_KEY}`;
+      const txUrl = `https://api.covalenthq.com/v1/${covalentChain}/address/${address}/transactions_v3/?page-size=${txPageSize}&key=${COVALENT_API_KEY}`;
       const txRes = await fetch(txUrl);
       if (txRes.ok) {
         const txJson = await txRes.json();
         const txItems: any[] = txJson?.data?.items || [];
-        const dates = txItems.map((t) => new Date(t.signed_at)).filter((d) => !isNaN(d.getTime()));
+        const now = Date.now();
+        const windowStartMs = now - dateWindowDays * 24 * 60 * 60 * 1000;
+        const dates = txItems
+          .map((t) => new Date(t.signed_at))
+          .filter((d) => !isNaN(d.getTime()) && d.getTime() >= windowStartMs);
         if (dates.length > 0) {
           dates.sort((a, b) => a.getTime() - b.getTime());
           first_tx_date = dates[0].toISOString();
