@@ -18,8 +18,14 @@ const Hero = () => {
     },
     {
       icon: MessageCircle,
-      title: "Smart Contract Chatbot",
-      description: "Get instant answers to your blockchain development questions"
+      title: "Public Wallet Inspection",
+      description: (
+        <>
+          <div>Get instant about wallets, contracts and on-chain risk.</div>
+          <ul className="mt-2 text-left list-disc ml-4">
+          </ul>
+        </>
+      )
     },
     {
       icon: Zap,
@@ -110,7 +116,7 @@ const Hero = () => {
                     <feature.icon className="h-6 w-6 text-purple-primary" />
                   </div>
                   <h3 className="font-semibold text-lg">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
+                  <div className="text-sm text-muted-foreground">{feature.description}</div>
                 </div>
               </div>
             ))}
