@@ -27,6 +27,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { FREE_LIMITS, PRO_LIMITS, PREMIUM_LIMITS, getUserPlan, getUserUsage, PlanType, getPlanLimits } from '@/lib/planLimits';
+import { useParams, useNavigate } from 'react-router-dom';
 
 interface AuditReport {
   id: string;
@@ -66,7 +67,10 @@ interface DashboardStats {
 }
 
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState('audits');
+  const params = useParams<{ tab?: string }>();
+  const navigate = useNavigate();
+  const initialTab = ['audits','scans','wallet','billing'].includes(params.tab || '') ? (params.tab as string) : 'audits';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [audits, setAudits] = useState<AuditReport[]>([]);
   const [tokens, setTokens] = useState<TokenScan[]>([]);
   const [walletInspections, setWalletInspections] = useState<WalletInspection[]>([]);
@@ -342,7 +346,7 @@ const Dashboard = () => {
         </div>
 
         {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); navigate(`/dashboard/${value}`); }}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="audits">Audit History</TabsTrigger>
             <TabsTrigger value="scans">Token Scans</TabsTrigger>
