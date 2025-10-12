@@ -660,7 +660,7 @@ const Dashboard = () => {
                 {stats.planType !== 'Premium' && (
                   <Button
                     className="w-full mt-4"
-                    onClick={() => window.location.assign('/pricing')}
+                    onClick={() => navigate('/pricing')}
                   >
                     {stats.planType === 'Free' ? 'Upgrade Plan' : 'Upgrade to Premium'}
                   </Button>

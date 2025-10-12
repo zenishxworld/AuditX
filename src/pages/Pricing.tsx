@@ -23,7 +23,7 @@ const Pricing = () => {
   const { toast } = useToast();
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
 
   const plans = [
     {
@@ -89,7 +89,7 @@ const Pricing = () => {
         description: "Please login to upgrade your plan.",
         variant: "destructive",
       });
-      navigate('/auth');
+      openAuthModal(true);
       return;
     }
 
@@ -110,7 +110,7 @@ const Pricing = () => {
         });
         setIsProcessing(false);
         setSelectedPlan('');
-        navigate('/dashboard');
+        navigate('/dashboard/billing');
       }, 2000);
     } catch (error) {
       console.error('Error updating subscription:', JSON.stringify(error));
