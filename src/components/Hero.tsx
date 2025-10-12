@@ -64,18 +64,17 @@ const Hero = () => {
           {/* Main Heading */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
             <span className="bg-gradient-primary bg-clip-text text-transparent">
-              AI-Powered
+              AuditX
             </span>
             <br />
             <span className="text-foreground">
-              Smart Contract Security
+              A Web3 Security Toolkit
             </span>
           </h1>
 
           {/* Subtitle */}
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
-            Protect your blockchain investments with advanced AI analysis. 
-            Audit smart contracts, detect scams, and get expert insights in seconds.
+            The all-in-one platform to audit code, assess token risk, and inspect wallet exposure. Protect your investments and code quality with unified, intelligent security checks.
           </p>
 
           {/* CTA Buttons */}
@@ -100,7 +99,7 @@ const Hero = () => {
               className="text-lg px-8 py-6 border-purple-primary/50 hover:bg-purple-primary/10"
               onClick={() => navigate('/docs')}
             >
-              Watch Demo
+              Learn More
             </Button>
           </div>
 
