@@ -73,8 +73,10 @@ const WalletInspector = () => {
     if (total < 100) score += balanceWeight;
     else if (total < 1000) score += Math.floor(balanceWeight / 2);
 
-    // Token diversity: fewer tokens increases risk; lower weight for privacy focus
-    const tokenCount = data.token_holdings?.length || 0;
+    // Token diversity: count only meaningful holdings (ignore dust < $1)
+    const tokenCount = (data.token_holdings || [])
+      .filter((t) => (t.amount * (t.price || 0)) >= 1)
+      .length;
     const diversityHigh = riskFocus === 'privacy' ? 15 : 25;
     const diversityMed = riskFocus === 'privacy' ? 8 : 15;
     if (tokenCount <= 2) score += diversityHigh;
@@ -88,12 +90,19 @@ const WalletInspector = () => {
       toBool(flags.is_sanctioned),
       toBool(flags.is_scam),
       toBool(flags.is_abnormal),
-      toBool(flags.is_dex_trader),
       toBool(flags.is_phishing),
     ];
     const trueFlags = flagBooleans.filter((f) => f === true).length;
     const perFlag = riskFocus === 'compliance' ? 15 : riskFocus === 'scam' ? 12 : 10;
     score += trueFlags * perFlag; // focus-weighted flags
+
+    // Resiliency deduction: long-lived, higher-value wallets tend to be lower risk
+    if (data.first_tx_date && ageInDays > 365 && total >= 5000) {
+      score = Math.max(0, score - 10);
+    }
+
+    // Bound score to [0, 100]
+    score = Math.min(100, Math.max(0, score));
 
     // Map to risk levels
     if (score >= 60) return { level: 'high', score };

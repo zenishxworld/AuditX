@@ -56,6 +56,13 @@ const bigintToDecimalNumber = (value: bigint, decimals: number, precision: numbe
   return Number.isFinite(num) ? num : 0;
 };
 
+// Map chains to CoinGecko platform IDs for accurate token price fallback
+const chainToCoinGeckoPlatform: Record<SupportedChain, string> = {
+  ethereum: 'ethereum',
+  polygon: 'polygon-pos',
+  bsc: 'binance-smart-chain',
+};
+
 // ---------------- Mock dataset for offline/failed-provider scenarios ----------------
 const mockNow = () => new Date();
 const daysAgoIso = (days: number) => {
@@ -201,9 +208,7 @@ const pickRandomMock = (address: string): RawWalletData => {
 const fromWei = (balance: string, decimals: number): number => {
   try {
     const bn = BigInt(balance);
-    const denom = BigInt(10) ** BigInt(decimals);
-    const whole = Number(bn) / Number(denom);
-    return whole;
+    return bigintToDecimalNumber(bn, decimals, 8);
   } catch {
     return 0;
   }
@@ -246,7 +251,7 @@ export async function fetchWalletData(
         nftItems = balanceItems.filter((it) => it.type?.toLowerCase() === 'nft');
         fungibleItems = balanceItems.filter((it) => it.type?.toLowerCase() !== 'nft');
 
-        // Map token holdings
+        // Map token holdings with precise BigInt conversion
         token_holdings = fungibleItems.map((it) => {
           const decimals = Number(it.contract_decimals || 0);
           const amount = fromWei(String(it.balance ?? '0'), decimals);
@@ -270,7 +275,8 @@ export async function fetchWalletData(
               .filter(Boolean)
               .join(',');
             if (addresses) {
-              const cgUrl = `https://api.coingecko.com/api/v3/simple/token_price/ethereum?contract_addresses=${addresses}&vs_currencies=usd`;
+              const platform = chainToCoinGeckoPlatform[chain];
+              const cgUrl = `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${addresses}&vs_currencies=usd`;
               const cgRes = await fetch(cgUrl);
               if (cgRes.ok) {
                 const cgJson = await cgRes.json();
@@ -317,15 +323,14 @@ export async function fetchWalletData(
       if (txRes.ok) {
         const txJson = await txRes.json();
         const txItems: any[] = txJson?.data?.items || [];
-        const now = Date.now();
-        const windowStartMs = now - dateWindowDays * 24 * 60 * 60 * 1000;
-        const dates = txItems
+        // Use overall history for first/last dates to avoid window bias
+        const datesAll = txItems
           .map((t) => new Date(t.signed_at))
-          .filter((d) => !isNaN(d.getTime()) && d.getTime() >= windowStartMs);
-        if (dates.length > 0) {
-          dates.sort((a, b) => a.getTime() - b.getTime());
-          first_tx_date = dates[0].toISOString();
-          last_tx_date = dates[dates.length - 1].toISOString();
+          .filter((d) => !isNaN(d.getTime()));
+        if (datesAll.length > 0) {
+          datesAll.sort((a, b) => a.getTime() - b.getTime());
+          first_tx_date = datesAll[0].toISOString();
+          last_tx_date = datesAll[datesAll.length - 1].toISOString();
         }
       } else {
         console.warn(`Covalent transactions_v3 failed: ${txRes.status}`);
