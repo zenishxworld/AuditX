@@ -442,6 +442,17 @@ const WalletInspector = () => {
           {/* Results */}
           {walletData && (
             <div className="space-y-6">
+              {/* Empty but valid state */}
+              {walletData.tokenCount === 0 && walletData.balanceUSD === 0 && !walletData.firstTransaction && !walletData.lastTransaction ? (
+                <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+                  <CardContent className="py-12">
+                    <p className="text-center text-muted-foreground">
+                      No data found for this wallet. The wallet may be new or inactive.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+              <>
               {/* Applied Options Summary */}
               <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
                 <CardHeader className="pb-3">
@@ -579,6 +590,8 @@ const WalletInspector = () => {
                   </div>
                 </CardContent>
               </Card>
+              </>
+              )}
             </div>
           )}
         </div>
