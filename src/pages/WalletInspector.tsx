@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWalletDataWithMock, type RawWalletData } from '@/lib/fetchWalletData';
+import { validateAddressCCA } from '@/lib/checkCryptoAddress';
 import { getUserPlan, getWalletInspectorUsage, isOverWalletInspectorLimit } from '@/lib/planLimits';
 
 interface WalletData {
@@ -41,6 +42,8 @@ const WalletInspector = () => {
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [ccaResult, setCcaResult] = useState<any | null>(null);
+  const [ccaError, setCcaError] = useState<string>('');
 
   // Analysis options to intake information about features
   const [analysisDepth, setAnalysisDepth] = useState<'basic' | 'standard' | 'advanced'>('standard');
@@ -133,6 +136,8 @@ const WalletInspector = () => {
     setIsLoading(true);
     setError('');
     setWalletData(null);
+    setCcaResult(null);
+    setCcaError('');
 
     try {
       // Fetch real-time data
@@ -168,6 +173,14 @@ const WalletInspector = () => {
       };
 
       setWalletData(processedData);
+
+      // Validate via CheckCryptoAddress
+      try {
+        const cca = await validateAddressCCA(addr, chain);
+        setCcaResult(cca);
+      } catch (e) {
+        setCcaError('Failed to validate address via CheckCryptoAddress');
+      }
 
       // Save to database if user is logged in (required for security)
       if (user) {
@@ -480,6 +493,67 @@ const WalletInspector = () => {
                     <p className="font-medium capitalize">{riskFocus}</p>
                   </div>
                 </CardContent>
+              </Card>
+              {/* Address Validation (CheckCryptoAddress) */}
+              <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Address Validation (CheckCryptoAddress)
+                  </CardTitle>
+                </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {ccaError && (
+                  <p className="text-destructive">{ccaError}</p>
+                )}
+                {!ccaError && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={(ccaResult?.valid ?? ccaResult?.isValid) ? 'text-emerald-600' : 'text-red-600'}>
+                        {(ccaResult?.valid ?? ccaResult?.isValid) ? 'Valid' : 'Invalid'}
+                      </Badge>
+                      <span className="text-muted-foreground">Network: {ccaResult?.network || chain}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Address:</span>
+                      <span className="font-mono text-xs">{(ccaResult as any)?.address || (address as string) || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="rounded-md border border-border/50 bg-muted/30 p-3">
+                        <div className="text-xs text-muted-foreground">Checksum</div>
+                        <div className="mt-1 text-sm font-medium">
+                          {((ccaResult as any)?.checksumValid ?? (ccaResult as any)?.checksum) === true ? 'Valid' :
+                            ((ccaResult as any)?.checksumValid ?? (ccaResult as any)?.checksum) === false ? 'Invalid' : 'Unknown'}
+                        </div>
+                      </div>
+                      <div className="rounded-md border border-border/50 bg-muted/30 p-3">
+                        <div className="text-xs text-muted-foreground">Warnings</div>
+                        {Array.isArray((ccaResult as any)?.warnings) && ((ccaResult as any)?.warnings?.length > 0) ? (
+                          <ul className="mt-1 space-y-1">
+                            {((ccaResult as any).warnings as any[]).map((w: any, i: number) => (
+                              <li key={i} className="text-sm">{typeof w === 'string' ? w : JSON.stringify(w)}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="mt-1 text-sm">None</div>
+                        )}
+                      </div>
+                      <div className="rounded-md border border-border/50 bg-muted/30 p-3">
+                        <div className="text-xs text-muted-foreground">Errors</div>
+                        {Array.isArray((ccaResult as any)?.errors) && ((ccaResult as any)?.errors?.length > 0) ? (
+                          <ul className="mt-1 space-y-1">
+                            {((ccaResult as any).errors as any[]).map((e: any, i: number) => (
+                              <li key={i} className="text-sm">{typeof e === 'string' ? e : JSON.stringify(e)}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="mt-1 text-sm">None</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
               </Card>
               {/* Wallet Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
